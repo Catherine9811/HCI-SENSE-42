@@ -1,0 +1,10 @@
+addcopyfighandler==3.0.0
+ipython==8.11.0
+matplotlib==3.8.2
+numpy==1.26.4
+psychopy==2024.2.5
+scikit-image==0.19.2
+scikit-learn==1.1.3
+scipy==1.13.1
+seaborn==0.13.2
+tqdm==4.64.1
