@@ -1,4 +1,6 @@
 from psychopy.misc import fromFile
+from collections import defaultdict
+import re
 
 
 class DataParser:
@@ -12,6 +14,14 @@ class DataParser:
         Start Time:\t {self.data.extraInfo['expStart']}
         Frame Rate:\t {self.data.extraInfo['frameRate']}
         """
+
+    def match_entry(self, regular_expression):
+        entries = defaultdict(list)
+        for entry in self.data.entries:
+            for key in entry:
+                if re.match(regular_expression, key):
+                    entries[key].append(entry)
+        return entries
 
     def __getitem__(self, item):
         if item in [
