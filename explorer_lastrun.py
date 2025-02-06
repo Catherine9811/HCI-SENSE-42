@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 This experiment was created using PsychoPy3 Experiment Builder (v2024.2.3),
-    on February 05, 2025, at 17:45
+    on February 06, 2025, at 11:14
 If you publish work using this script the most relevant publication is:
 
     Peirce J, Gray JR, Simpson S, MacAskill M, Höchenberger R, Sogo H, Kastman E, Lindeløv JK. (2019) 
@@ -35,6 +35,10 @@ from psychopy.hardware import keyboard
 
 # Run 'Before Experiment' code from global_code
 import re
+from psychopy import logging
+logging.console.setLevel(logging.CRITICAL)
+
+
 from faker import Faker
 
 fake = Faker(["en_US"], use_weighting=True)
@@ -1609,6 +1613,22 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
         color='black', colorSpace='rgb', opacity=None, 
         languageStyle='LTR',
         depth=-1.0);
+    calibration_appearance_windows_prompt = visual.TextBox2(
+         win, text='Guidance will be shown HERE', placeholder='Type here...', font='Open Sans',
+         ori=0.0, pos=[0,0], draggable=False, units='norm',     letterHeight=0.05,
+         size=1.0, borderWidth=2.0,
+         color='black', colorSpace='rgb',
+         opacity=None,
+         bold=False, italic=False,
+         lineSpacing=1.0, speechPoint=None,
+         padding=0.0, alignment='center',
+         anchor='center', overflow='visible',
+         fillColor=None, borderColor=None,
+         flipHoriz=False, flipVert=False, languageStyle='LTR',
+         editable=False,
+         name='calibration_appearance_windows_prompt',
+         depth=-2, autoLog=False,
+    )
     
     # --- Initialize components for Routine "calibration_appearance_mac" ---
     calibration_appearance_mac_text = visual.TextStim(win=win, name='calibration_appearance_mac_text',
@@ -1618,6 +1638,22 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
         color='black', colorSpace='rgb', opacity=None, 
         languageStyle='LTR',
         depth=-1.0);
+    calibration_appearance_mac_prompt = visual.TextBox2(
+         win, text='Guidance will be shown HERE', placeholder='Type here...', font='Open Sans',
+         ori=0.0, pos=[0,0], draggable=False, units='norm',     letterHeight=0.05,
+         size=1.0, borderWidth=2.0,
+         color='black', colorSpace='rgb',
+         opacity=None,
+         bold=False, italic=False,
+         lineSpacing=1.0, speechPoint=None,
+         padding=0.0, alignment='center',
+         anchor='center', overflow='visible',
+         fillColor=None, borderColor=None,
+         flipHoriz=False, flipVert=False, languageStyle='LTR',
+         editable=False,
+         name='calibration_appearance_mac_prompt',
+         depth=-2, autoLog=False,
+    )
     
     # --- Initialize components for Routine "calibration_typing_start" ---
     calibration_typing_start_text = visual.TextStim(win=win, name='calibration_typing_start_text',
@@ -2496,7 +2532,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
     # create an object to store info about Routine calibration_appearance_windows
     calibration_appearance_windows = data.Routine(
         name='calibration_appearance_windows',
-        components=[calibration_appearance_windows_text],
+        components=[calibration_appearance_windows_text, calibration_appearance_windows_prompt],
     )
     calibration_appearance_windows.status = NOT_STARTED
     continueRoutine = True
@@ -2509,6 +2545,9 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
     task_bar.reset()
     task_bar.show()
     base_window.show()
+    calibration_appearance_windows_prompt.reset()
+    calibration_appearance_windows_prompt.setPos((0, 1.0 - FONT_SIZE / 2))
+    calibration_appearance_windows_prompt.setSize((2.0, FONT_SIZE))
     # store start times for calibration_appearance_windows
     calibration_appearance_windows.tStartRefresh = win.getFutureFlipTime(clock=globalClock)
     calibration_appearance_windows.tStart = globalClock.getTime(format='float')
@@ -2559,6 +2598,24 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
         
         # if calibration_appearance_windows_text is active this frame...
         if calibration_appearance_windows_text.status == STARTED:
+            # update params
+            pass
+        
+        # *calibration_appearance_windows_prompt* updates
+        
+        # if calibration_appearance_windows_prompt is starting this frame...
+        if calibration_appearance_windows_prompt.status == NOT_STARTED and tThisFlip >= 0.0-frameTolerance:
+            # keep track of start time/frame for later
+            calibration_appearance_windows_prompt.frameNStart = frameN  # exact frame index
+            calibration_appearance_windows_prompt.tStart = t  # local t and not account for scr refresh
+            calibration_appearance_windows_prompt.tStartRefresh = tThisFlipGlobal  # on global time
+            win.timeOnFlip(calibration_appearance_windows_prompt, 'tStartRefresh')  # time at next scr refresh
+            # update status
+            calibration_appearance_windows_prompt.status = STARTED
+            calibration_appearance_windows_prompt.setAutoDraw(True)
+        
+        # if calibration_appearance_windows_prompt is active this frame...
+        if calibration_appearance_windows_prompt.status == STARTED:
             # update params
             pass
         
@@ -2613,7 +2670,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
     # create an object to store info about Routine calibration_appearance_mac
     calibration_appearance_mac = data.Routine(
         name='calibration_appearance_mac',
-        components=[calibration_appearance_mac_text],
+        components=[calibration_appearance_mac_text, calibration_appearance_mac_prompt],
     )
     calibration_appearance_mac.status = NOT_STARTED
     continueRoutine = True
@@ -2626,6 +2683,9 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
     task_bar.reset()
     task_bar.show()
     base_window.show()
+    calibration_appearance_mac_prompt.reset()
+    calibration_appearance_mac_prompt.setPos((0, 1.0 - FONT_SIZE / 2))
+    calibration_appearance_mac_prompt.setSize((2.0, FONT_SIZE))
     # store start times for calibration_appearance_mac
     calibration_appearance_mac.tStartRefresh = win.getFutureFlipTime(clock=globalClock)
     calibration_appearance_mac.tStart = globalClock.getTime(format='float')
@@ -2676,6 +2736,24 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
         
         # if calibration_appearance_mac_text is active this frame...
         if calibration_appearance_mac_text.status == STARTED:
+            # update params
+            pass
+        
+        # *calibration_appearance_mac_prompt* updates
+        
+        # if calibration_appearance_mac_prompt is starting this frame...
+        if calibration_appearance_mac_prompt.status == NOT_STARTED and tThisFlip >= 0.0-frameTolerance:
+            # keep track of start time/frame for later
+            calibration_appearance_mac_prompt.frameNStart = frameN  # exact frame index
+            calibration_appearance_mac_prompt.tStart = t  # local t and not account for scr refresh
+            calibration_appearance_mac_prompt.tStartRefresh = tThisFlipGlobal  # on global time
+            win.timeOnFlip(calibration_appearance_mac_prompt, 'tStartRefresh')  # time at next scr refresh
+            # update status
+            calibration_appearance_mac_prompt.status = STARTED
+            calibration_appearance_mac_prompt.setAutoDraw(True)
+        
+        # if calibration_appearance_mac_prompt is active this frame...
+        if calibration_appearance_mac_prompt.status == STARTED:
             # update params
             pass
         
