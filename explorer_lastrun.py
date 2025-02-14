@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 This experiment was created using PsychoPy3 Experiment Builder (v2024.2.3),
-    on February 06, 2025, at 11:14
+    on February 14, 2025, at 16:08
 If you publish work using this script the most relevant publication is:
 
     Peirce J, Gray JR, Simpson S, MacAskill M, Höchenberger R, Sogo H, Kastman E, Lindeløv JK. (2019) 
@@ -46,6 +46,101 @@ fake = Faker(["en_US"], use_weighting=True)
 personalized_settings = {
     "typing_speed": 3.13, # characters per seconds
 }
+
+import serial
+
+class SerialConnector:
+    CALIB_BEGIN = 1
+    CALIB_END = 2
+    
+    EXP_BEGIN = 3
+    EXP_END = 4
+    
+    WINDOW_CLOSE_BEGIN = 5
+    WINDOW_CLOSE_END = 6
+    
+    # Mail related events
+    MAIL_HOMESCREEN_BEGIN = 7
+    MAIL_HOMESCREEN_END = 8
+    MAIL_NOTIFICATION_BEGIN = 9
+    MAIL_NOTIFICATION_END = 10
+    MAIL_CONTENT_BEGIN = 11
+    MAIL_CONTENT_END = 12
+    
+    # File manager (dragging and opening)
+    FILE_MANAGER_HOMESCREEN_BEGIN = 13
+    FILE_MANAGER_HOMESCREEN_END = 14
+    FILE_MANAGER_DRAGGING_BEGIN = 15
+    FILE_MANAGER_DRAGGING_END = 16
+    FILE_MANAGER_OPENING_BEGIN = 17
+    FILE_MANAGER_OPENING_END = 18
+    
+    # Trash bin
+    TRASH_BIN_HOMESCREEN_BEGIN = 19
+    TRASH_BIN_HOMESCREEN_END = 20
+    TRASH_BIN_SELECT_BEGIN = 21
+    TRASH_BIN_SELECT_END = 22
+    TRASH_BIN_CONFIRM_BEGIN = 23
+    TRASH_BIN_CONFIRM_END = 24
+    
+    # Notes
+    NOTES_HOMESCREEN_BEGIN = 25
+    NOTES_HOMESCREEN_END = 26
+    NOTES_REPEAT_BEGIN = 27
+    NOTES_REPEAT_END = 28
+    
+    # Browser
+    BROWSER_HOMESCREEN_BEGIN = 29
+    BROWSER_HOMESCREEN_END = 30
+    BROWSER_NAVIGATION_BEGIN = 31
+    BROWSER_NAVIGATION_END = 32
+    BROWSER_CONTENT_BEGIN = 33
+    BROWSER_CONTENT_END = 34
+    
+    # Questions
+    QUESTION_BASE = 100
+    QUESTION_LEAP = 10
+    ## Answered questions will be encoded as 
+    ## QUESTION_BASE + QUESTION_LEAP * QUESTION_INDEX + QUESTION_RATING
+    
+    EEG_STOP_RECORDING = 254
+    EEG_START_RECORDING = 255
+
+    def __init__(self, com: str, bit_rate: int):
+        try:
+            self.port = serial.Serial(com, bit_rate, write_timeout=1, timeout=1)
+        except Exception as e:
+            self.port = None
+            logging.critical("EEG recording is not enabled!")
+            logging.critical(e)
+    
+    def write(self, number):
+        if self.port is not None:
+            try:
+                self.port.write(int(number).to_bytes(1, 'big'))
+            except Exception as e:
+                logging.critical(f"Failed to send EEG signal {number}!")
+                logging.critical(e)
+        else:
+            logging.critical(f"Virtually sending signal {number} to EEG")
+    
+    def open(self):
+        if self.port is not None:
+            try:
+                self.port.open()
+            except Exception as e:
+                logging.critical(f"Failed to open EEG port!")
+                logging.critical(e)
+                
+    def close(self):
+        if self.port is not None:
+            try:
+                self.port.close()
+            except Exception as e:
+                logging.critical(f"Failed to close EEG port!")
+                logging.critical(e)
+serial_connector = SerialConnector('COM3', 115200)
+serial_connector.open()
 # --- Setup global variables (available in all functions) ---
 # create a device manager to handle hardware (keyboards, mice, mirophones, speakers, etc.)
 deviceManager = hardware.DeviceManager()
@@ -760,6 +855,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
         def update(self):
             display_index = self.order[self.current_index]
             if self.mouse.isPressedIn(self.next_button) and self.SLIDERS[display_index].getRating() is not None:
+                serial_connector.write(SerialConnector.QUESTION_BASE + SerialConnector.QUESTION_LEAP * display_index + self.SLIDERS[display_index].getRating())
                 self.current_index += 1
                 if self.current_index >= len(self.SLIDERS):
                     self.current_index = 0
@@ -769,7 +865,8 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
             
         def log(self):
             for slider_component in self.SLIDERS:
-                thisExp.addData(slider_component.name, slider_component.getRating())
+                thisExp.addData(f"{slider_component.name}.rating", slider_component.getRating())
+                thisExp.addData(f"{slider_component.name}.rt", slider_component.getRT())
             
         def reset(self):
             self.current_index = 0
@@ -889,7 +986,8 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
             
         def log(self):
             for slider_component in self.SLIDERS:
-                thisExp.addData(slider_component.name, slider_component.getRating())
+                thisExp.addData(f"{slider_component.name}.rating", slider_component.getRating())
+                thisExp.addData(f"{slider_component.name}.rt", slider_component.getRT())
             
         def reset(self):
             for slider_component in self.SLIDERS:
@@ -1369,7 +1467,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
             thisExp.addData("notes_repeat_target", self.notes_repeat_target.text)
         
         def safe_match(self, input_string):
-            return len(re.sub(r'[^A-Za-z,. ]', '', input_string))
+            return len(re.sub(r'[^A-Za-z,. \n]', '', input_string))
         
         def update(self):
             matched = self.safe_match(self.notes_repeat_source.text) <= self.safe_match(self.notes_repeat_target.text)
@@ -1599,7 +1697,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
         pos=(0, 0), draggable=False, height=0.1, wrapWidth=None, ori=0.0, 
         color='black', colorSpace='rgb', opacity=None, 
         languageStyle='LTR',
-        depth=0.0);
+        depth=-1.0);
     calibration_start_mouse = event.Mouse(win=win)
     x, y = [None, None]
     calibration_start_mouse.mouseClock = core.Clock()
@@ -1657,7 +1755,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
     
     # --- Initialize components for Routine "calibration_typing_start" ---
     calibration_typing_start_text = visual.TextStim(win=win, name='calibration_typing_start_text',
-        text='Typing Calibration\n\n\nYou will be asked to enter sentences consisting of random words, with a period "." in the end. Your mouse will be disabled for this task. During typing, if you find any previous errors in typing that happened for more than two words before, you should ignore it and continue typing instead of trying to fix it. The task should complete automatically once you have finished typing. If not, you may hit SPACE multiple times to continue.\n\npress ENTER to continue...',
+        text='Typing Calibration\n\n\nYou will be asked to enter sentences consisting of random words, with a period "." in the end. Your mouse will be disabled for this task. During typing, if you find any previous errors in typing that happened for more than two words before, you should ignore it and continue typing instead of trying to fix it.\n\npress ENTER to continue...',
         font='Open Sans',
         pos=(0, 0), draggable=False, height=0.08, wrapWidth=None, ori=0.0, 
         color='black', colorSpace='rgb', opacity=None, 
@@ -2227,7 +2325,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
         pos=(0, 0), draggable=False, height=0.1, wrapWidth=None, ori=0.0, 
         color='black', colorSpace='rgb', opacity=None, 
         languageStyle='LTR',
-        depth=0.0);
+        depth=-1.0);
     experiment_end_mouse = event.Mouse(win=win)
     x, y = [None, None]
     experiment_end_mouse.mouseClock = core.Clock()
@@ -2270,6 +2368,8 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
     definition.status = NOT_STARTED
     continueRoutine = True
     # update component parameters for each repeat
+    # Run 'Begin Routine' code from global_code
+    serial_connector.write(SerialConnector.EEG_START_RECORDING)
     # store start times for definition
     definition.tStartRefresh = win.getFutureFlipTime(clock=globalClock)
     definition.tStart = globalClock.getTime(format='float')
@@ -2352,6 +2452,8 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
     calibration_start.status = NOT_STARTED
     continueRoutine = True
     # update component parameters for each repeat
+    # Run 'Begin Routine' code from calibration_start_code
+    serial_connector.write(SerialConnector.CALIB_BEGIN)
     # setup some python lists for storing info about the calibration_start_mouse
     calibration_start_mouse.x = []
     calibration_start_mouse.y = []
@@ -3019,7 +3121,6 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
             calibration_typing_key.status = STARTED
             # keyboard checking is just starting
             calibration_typing_key.clock.reset()  # now t=0
-            calibration_typing_key.clearEvents(eventType='keyboard')
         if calibration_typing_key.status == STARTED:
             theseKeys = calibration_typing_key.getKeys(keyList=None, ignoreKeys=["escape"], waitRelease=True)
             _calibration_typing_key_allKeys.extend(theseKeys)
@@ -3092,8 +3193,9 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
     calibration_end.status = NOT_STARTED
     continueRoutine = True
     # update component parameters for each repeat
-    # Run 'Begin Routine' code from calibration_code
+    # Run 'Begin Routine' code from calibration_end_code
     print(personalized_settings)
+    serial_connector.write(SerialConnector.CALIB_END)
     # setup some python lists for storing info about the calibration_end_mouse
     calibration_end_mouse.x = []
     calibration_end_mouse.y = []
@@ -3273,7 +3375,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
     calibration_end.tStop = globalClock.getTime(format='float')
     calibration_end.tStopRefresh = tThisFlipGlobal
     thisExp.addData('calibration_end.stopped', calibration_end.tStop)
-    # Run 'End Routine' code from calibration_code
+    # Run 'End Routine' code from calibration_end_code
     for key_name, key_value in personalized_settings.items():
         thisExp.addData(key_name, key_value)
     # store data for thisExp (ExperimentHandler)
@@ -3303,6 +3405,8 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
     experiment_start.status = NOT_STARTED
     continueRoutine = True
     # update component parameters for each repeat
+    # Run 'Begin Routine' code from experiment_start_code
+    serial_connector.write(SerialConnector.EXP_BEGIN)
     # setup some python lists for storing info about the experiment_start_mouse
     experiment_start_mouse.x = []
     experiment_start_mouse.y = []
@@ -3676,7 +3780,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 # Run 'Begin Routine' code from mail_code_homescreen
                 task_bar.allocate_target(index=2)
                 task_bar.show()
-                
+                serial_connector.write(SerialConnector.MAIL_HOMESCREEN_BEGIN)
                 # setup some python lists for storing info about the mail_mouse_homescreen
                 mail_mouse_homescreen.x = []
                 mail_mouse_homescreen.y = []
@@ -3719,7 +3823,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 if isinstance(mail, data.TrialHandler2) and thisMail.thisN != mail.thisTrial.thisN:
                     continueRoutine = False
                 mail_homescreen.forceEnded = routineForceEnded = not continueRoutine
-                while continueRoutine and routineTimer.getTime() < 2.0:
+                while continueRoutine and routineTimer.getTime() < 5.0:
                     # get current time
                     t = routineTimer.getTime()
                     tThisFlip = win.getFutureFlipTime(clock=routineTimer)
@@ -3746,7 +3850,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                     # if mail_mouse_homescreen is stopping this frame...
                     if mail_mouse_homescreen.status == STARTED:
                         # is it time to stop? (based on global clock, using actual start)
-                        if tThisFlipGlobal > mail_mouse_homescreen.tStartRefresh + 2.0-frameTolerance:
+                        if tThisFlipGlobal > mail_mouse_homescreen.tStartRefresh + 5.0-frameTolerance:
                             # keep track of stop time/frame for later
                             mail_mouse_homescreen.tStop = t  # not accounting for scr refresh
                             mail_mouse_homescreen.tStopRefresh = tThisFlipGlobal  # on global time
@@ -3786,7 +3890,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                     # if mail_textbox_homescreen is stopping this frame...
                     if mail_textbox_homescreen.status == STARTED:
                         # is it time to stop? (based on global clock, using actual start)
-                        if tThisFlipGlobal > mail_textbox_homescreen.tStartRefresh + 2.0-frameTolerance:
+                        if tThisFlipGlobal > mail_textbox_homescreen.tStartRefresh + 5.0-frameTolerance:
                             # keep track of stop time/frame for later
                             mail_textbox_homescreen.tStop = t  # not accounting for scr refresh
                             mail_textbox_homescreen.tStopRefresh = tThisFlipGlobal  # on global time
@@ -3835,6 +3939,8 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 mail_homescreen.tStopRefresh = tThisFlipGlobal
                 thisExp.addData('mail_homescreen.stopped', mail_homescreen.tStop)
                 setupWindow(expInfo=expInfo, win=win)
+                # Run 'End Routine' code from mail_code_homescreen
+                serial_connector.write(SerialConnector.MAIL_HOMESCREEN_END)
                 # store data for mail (TrialHandler)
                 mail.addData('mail_mouse_homescreen.x', mail_mouse_homescreen.x)
                 mail.addData('mail_mouse_homescreen.y', mail_mouse_homescreen.y)
@@ -3848,7 +3954,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 elif mail_homescreen.forceEnded:
                     routineTimer.reset()
                 else:
-                    routineTimer.addTime(-2.000000)
+                    routineTimer.addTime(-5.000000)
                 
                 # --- Prepare to start Routine "mail_notification" ---
                 # create an object to store info about Routine mail_notification
@@ -3861,6 +3967,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 # update component parameters for each repeat
                 # Run 'Begin Routine' code from mail_notification_code
                 notification.show()
+                serial_connector.write(SerialConnector.MAIL_NOTIFICATION_BEGIN)
                 # setup some python lists for storing info about the mail_notification_mouse
                 mail_notification_mouse.x = []
                 mail_notification_mouse.y = []
@@ -3997,6 +4104,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 setupWindow(expInfo=expInfo, win=win)
                 # Run 'End Routine' code from mail_notification_code
                 notification.hide()
+                serial_connector.write(SerialConnector.MAIL_NOTIFICATION_END)
                 # store data for mail (TrialHandler)
                 mail.addData('mail_notification_mouse.x', mail_notification_mouse.x)
                 mail.addData('mail_notification_mouse.y', mail_notification_mouse.y)
@@ -4024,6 +4132,8 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 task_bar.show()
                 
                 win.winHandle.activate()
+                
+                serial_connector.write(SerialConnector.MAIL_CONTENT_BEGIN)
                 mail_content_textbox.reset()
                 mail_content_textbox.setPos((0, 1.0 - FONT_SIZE / 2))
                 mail_content_textbox.setSize((2.0, FONT_SIZE))
@@ -4156,6 +4266,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 # Run 'End Routine' code from mail_content_code
                 single_view_editor.log()
                 single_view_editor.hide()
+                serial_connector.write(SerialConnector.MAIL_CONTENT_END)
                 # check responses
                 if mail_content_user_key_release.keys in ['', [], None]:  # No response was made
                     mail_content_user_key_release.keys = None
@@ -4179,6 +4290,8 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 base_window.allocate_target()
                 base_window.show()
                 task_bar.show()
+                
+                serial_connector.write(SerialConnector.WINDOW_CLOSE_BEGIN)
                 close_textbox.reset()
                 close_textbox.setPos((0, 1.0 - FONT_SIZE / 2))
                 close_textbox.setSize((2.0, FONT_SIZE))
@@ -4334,6 +4447,8 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 # Run 'End Routine' code from close_code
                 base_window.log()
                 hide_all()
+                
+                serial_connector.write(SerialConnector.WINDOW_CLOSE_END)
                 # store data for mail (TrialHandler)
                 mail.addData('window_close_mouse.x', window_close_mouse.x)
                 mail.addData('window_close_mouse.y', window_close_mouse.y)
@@ -4384,6 +4499,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 task_bar.allocate_target(index=0)
                 task_bar.show()
                 
+                serial_connector.write(SerialConnector.FILE_MANAGER_HOMESCREEN_BEGIN)
                 # setup some python lists for storing info about the file_manager_mouse_homescreen
                 file_manager_mouse_homescreen.x = []
                 file_manager_mouse_homescreen.y = []
@@ -4517,6 +4633,9 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 file_manager_homescreen.tStopRefresh = tThisFlipGlobal
                 thisExp.addData('file_manager_homescreen.stopped', file_manager_homescreen.tStop)
                 setupWindow(expInfo=expInfo, win=win)
+                # Run 'End Routine' code from file_manager_code_homescreen
+                
+                serial_connector.write(SerialConnector.FILE_MANAGER_HOMESCREEN_END)
                 # store data for file_manager_dragging_task (TrialHandler)
                 file_manager_dragging_task.addData('file_manager_mouse_homescreen.x', file_manager_mouse_homescreen.x)
                 file_manager_dragging_task.addData('file_manager_mouse_homescreen.y', file_manager_mouse_homescreen.y)
@@ -4582,6 +4701,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                     # Log clicked elements
                     last_clicked_offset = None
                     
+                    serial_connector.write(SerialConnector.FILE_MANAGER_DRAGGING_BEGIN)
                     file_manager_dragging_textbox.reset()
                     file_manager_dragging_textbox.setPos((0, 1.0 - FONT_SIZE / 2))
                     file_manager_dragging_textbox.setSize((2.0, FONT_SIZE))
@@ -4781,6 +4901,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                     thisExp.addData('target_location', (target_x, target_y))
                     thisExp.addData('last_clicked_offset', tuple(last_clicked_offset))
                     
+                    serial_connector.write(SerialConnector.FILE_MANAGER_DRAGGING_END)
                     # store data for file_dragging (TrialHandler)
                     file_dragging.addData('stimuli_dragging_mouse.x', stimuli_dragging_mouse.x)
                     file_dragging.addData('stimuli_dragging_mouse.y', stimuli_dragging_mouse.y)
@@ -4811,6 +4932,8 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 base_window.allocate_target()
                 base_window.show()
                 task_bar.show()
+                
+                serial_connector.write(SerialConnector.WINDOW_CLOSE_BEGIN)
                 close_textbox.reset()
                 close_textbox.setPos((0, 1.0 - FONT_SIZE / 2))
                 close_textbox.setSize((2.0, FONT_SIZE))
@@ -4966,6 +5089,8 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 # Run 'End Routine' code from close_code
                 base_window.log()
                 hide_all()
+                
+                serial_connector.write(SerialConnector.WINDOW_CLOSE_END)
                 # store data for file_manager_dragging_task (TrialHandler)
                 file_manager_dragging_task.addData('window_close_mouse.x', window_close_mouse.x)
                 file_manager_dragging_task.addData('window_close_mouse.y', window_close_mouse.y)
@@ -5016,6 +5141,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 task_bar.allocate_target(index=0)
                 task_bar.show()
                 
+                serial_connector.write(SerialConnector.FILE_MANAGER_HOMESCREEN_BEGIN)
                 # setup some python lists for storing info about the file_manager_mouse_homescreen
                 file_manager_mouse_homescreen.x = []
                 file_manager_mouse_homescreen.y = []
@@ -5149,6 +5275,9 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 file_manager_homescreen.tStopRefresh = tThisFlipGlobal
                 thisExp.addData('file_manager_homescreen.stopped', file_manager_homescreen.tStop)
                 setupWindow(expInfo=expInfo, win=win)
+                # Run 'End Routine' code from file_manager_code_homescreen
+                
+                serial_connector.write(SerialConnector.FILE_MANAGER_HOMESCREEN_END)
                 # store data for file_manager_opening_task (TrialHandler)
                 file_manager_opening_task.addData('file_manager_mouse_homescreen.x', file_manager_mouse_homescreen.x)
                 file_manager_opening_task.addData('file_manager_mouse_homescreen.y', file_manager_mouse_homescreen.y)
@@ -5213,6 +5342,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                     clicked_elements = 0
                     last_clicked = False
                     
+                    serial_connector.write(SerialConnector.FILE_MANAGER_OPENING_BEGIN)
                     file_manager_opening_textbox.reset()
                     file_manager_opening_textbox.setPos((0, 1.0 - FONT_SIZE / 2))
                     file_manager_opening_textbox.setSize((2.0, FONT_SIZE))
@@ -5401,6 +5531,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                     thisExp.addData('stimuli_reaction_size', size)
                     thisExp.addData('stimuli_reaction_radius', radius)
                     thisExp.addData('stimuli_reaction_stimuli_location', (loc_x, loc_y))
+                    serial_connector.write(SerialConnector.FILE_MANAGER_OPENING_END)
                     # store data for file_opening (TrialHandler)
                     file_opening.addData('stimuli_reaction_mouse_movement.x', stimuli_reaction_mouse_movement.x)
                     file_opening.addData('stimuli_reaction_mouse_movement.y', stimuli_reaction_mouse_movement.y)
@@ -5431,6 +5562,8 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 base_window.allocate_target()
                 base_window.show()
                 task_bar.show()
+                
+                serial_connector.write(SerialConnector.WINDOW_CLOSE_BEGIN)
                 close_textbox.reset()
                 close_textbox.setPos((0, 1.0 - FONT_SIZE / 2))
                 close_textbox.setSize((2.0, FONT_SIZE))
@@ -5586,6 +5719,8 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 # Run 'End Routine' code from close_code
                 base_window.log()
                 hide_all()
+                
+                serial_connector.write(SerialConnector.WINDOW_CLOSE_END)
                 # store data for file_manager_opening_task (TrialHandler)
                 file_manager_opening_task.addData('window_close_mouse.x', window_close_mouse.x)
                 file_manager_opening_task.addData('window_close_mouse.y', window_close_mouse.y)
@@ -5636,6 +5771,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 task_bar.allocate_target(index=4)
                 task_bar.show()
                 
+                serial_connector.write(SerialConnector.TRASH_BIN_HOMESCREEN_BEGIN)
                 # setup some python lists for storing info about the trash_bin_mouse_homescreen
                 trash_bin_mouse_homescreen.x = []
                 trash_bin_mouse_homescreen.y = []
@@ -5769,6 +5905,9 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 trash_bin_homescreen.tStopRefresh = tThisFlipGlobal
                 thisExp.addData('trash_bin_homescreen.stopped', trash_bin_homescreen.tStop)
                 setupWindow(expInfo=expInfo, win=win)
+                # Run 'End Routine' code from trash_bin_code_homescreen
+                
+                serial_connector.write(SerialConnector.TRASH_BIN_HOMESCREEN_END)
                 # store data for trash_bin (TrialHandler)
                 trash_bin.addData('trash_bin_mouse_homescreen.x', trash_bin_mouse_homescreen.x)
                 trash_bin.addData('trash_bin_mouse_homescreen.y', trash_bin_mouse_homescreen.y)
@@ -5794,6 +5933,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 task_bar.show()
                 trash_items_overlay.reset()
                 trash_items_overlay.show()
+                serial_connector.write(SerialConnector.TRASH_BIN_SELECT_BEGIN)
                 # setup some python lists for storing info about the trash_bin_select_mouse
                 trash_bin_select_mouse.x = []
                 trash_bin_select_mouse.y = []
@@ -5932,6 +6072,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 setupWindow(expInfo=expInfo, win=win)
                 # Run 'End Routine' code from trash_bin_select_code
                 trash_items_overlay.log()
+                serial_connector.write(SerialConnector.TRASH_BIN_SELECT_END)
                 # store data for trash_bin (TrialHandler)
                 trash_bin.addData('trash_bin_select_mouse.x', trash_bin_select_mouse.x)
                 trash_bin.addData('trash_bin_select_mouse.y', trash_bin_select_mouse.y)
@@ -5953,6 +6094,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 # update component parameters for each repeat
                 # Run 'Begin Routine' code from trash_bin_confirm_code
                 popup_window.show()
+                serial_connector.write(SerialConnector.TRASH_BIN_CONFIRM_BEGIN)
                 # setup some python lists for storing info about the trash_bin_confirm_mouse
                 trash_bin_confirm_mouse.x = []
                 trash_bin_confirm_mouse.y = []
@@ -6093,6 +6235,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 trash_items_overlay.hide()
                 popup_window.hide()
                 task_bar.set_trash_empty()
+                serial_connector.write(SerialConnector.TRASH_BIN_CONFIRM_END)
                 # store data for trash_bin (TrialHandler)
                 trash_bin.addData('trash_bin_confirm_mouse.x', trash_bin_confirm_mouse.x)
                 trash_bin.addData('trash_bin_confirm_mouse.y', trash_bin_confirm_mouse.y)
@@ -6116,6 +6259,8 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 base_window.allocate_target()
                 base_window.show()
                 task_bar.show()
+                
+                serial_connector.write(SerialConnector.WINDOW_CLOSE_BEGIN)
                 close_textbox.reset()
                 close_textbox.setPos((0, 1.0 - FONT_SIZE / 2))
                 close_textbox.setSize((2.0, FONT_SIZE))
@@ -6271,6 +6416,8 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 # Run 'End Routine' code from close_code
                 base_window.log()
                 hide_all()
+                
+                serial_connector.write(SerialConnector.WINDOW_CLOSE_END)
                 # store data for trash_bin (TrialHandler)
                 trash_bin.addData('window_close_mouse.x', window_close_mouse.x)
                 trash_bin.addData('window_close_mouse.y', window_close_mouse.y)
@@ -6321,6 +6468,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 task_bar.allocate_target(index=3)
                 task_bar.show()
                 
+                serial_connector.write(SerialConnector.NOTES_HOMESCREEN_BEGIN)
                 # setup some python lists for storing info about the notes_mouse_homescreen
                 notes_mouse_homescreen.x = []
                 notes_mouse_homescreen.y = []
@@ -6454,6 +6602,9 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 notes_homescreen.tStopRefresh = tThisFlipGlobal
                 thisExp.addData('notes_homescreen.stopped', notes_homescreen.tStop)
                 setupWindow(expInfo=expInfo, win=win)
+                # Run 'End Routine' code from notes_code_homescreen
+                
+                serial_connector.write(SerialConnector.NOTES_HOMESCREEN_END)
                 # store data for notes (TrialHandler)
                 notes.addData('notes_mouse_homescreen.x', notes_mouse_homescreen.x)
                 notes.addData('notes_mouse_homescreen.y', notes_mouse_homescreen.y)
@@ -6479,6 +6630,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 base_window.show()
                 task_bar.show()
                 split_view_editor.show()
+                serial_connector.write(SerialConnector.NOTES_REPEAT_BEGIN)
                 notes_repeat_textbox.reset()
                 notes_repeat_textbox.setPos((0, 1.0 - FONT_SIZE / 2))
                 notes_repeat_textbox.setSize((2.0, FONT_SIZE))
@@ -6609,8 +6761,9 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 setupWindow(expInfo=expInfo, win=win)
                 # Run 'End Routine' code from notes_repeat_code
                 split_view_editor.log()
-                print(split_view_editor.notes_repeat_source.text, split_view_editor.notes_repeat_target.text)
+                #print(split_view_editor.notes_repeat_source.text, split_view_editor.notes_repeat_target.text)
                 split_view_editor.hide()
+                serial_connector.write(SerialConnector.NOTES_REPEAT_END)
                 # check responses
                 if notes_repeat_keyboard.keys in ['', [], None]:  # No response was made
                     notes_repeat_keyboard.keys = None
@@ -6634,6 +6787,8 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 base_window.allocate_target()
                 base_window.show()
                 task_bar.show()
+                
+                serial_connector.write(SerialConnector.WINDOW_CLOSE_BEGIN)
                 close_textbox.reset()
                 close_textbox.setPos((0, 1.0 - FONT_SIZE / 2))
                 close_textbox.setSize((2.0, FONT_SIZE))
@@ -6789,6 +6944,8 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 # Run 'End Routine' code from close_code
                 base_window.log()
                 hide_all()
+                
+                serial_connector.write(SerialConnector.WINDOW_CLOSE_END)
                 # store data for notes (TrialHandler)
                 notes.addData('window_close_mouse.x', window_close_mouse.x)
                 notes.addData('window_close_mouse.y', window_close_mouse.y)
@@ -6839,6 +6996,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 task_bar.allocate_target(index=1)
                 task_bar.show()
                 
+                serial_connector.write(SerialConnector.BROWSER_HOMESCREEN_BEGIN)
                 # setup some python lists for storing info about the browser_mouse_homescreen
                 browser_mouse_homescreen.x = []
                 browser_mouse_homescreen.y = []
@@ -6972,6 +7130,9 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 browser_homescreen.tStopRefresh = tThisFlipGlobal
                 thisExp.addData('browser_homescreen.stopped', browser_homescreen.tStop)
                 setupWindow(expInfo=expInfo, win=win)
+                # Run 'End Routine' code from browser_code_homescreen
+                
+                serial_connector.write(SerialConnector.BROWSER_HOMESCREEN_END)
                 # store data for browser (TrialHandler)
                 browser.addData('browser_mouse_homescreen.x', browser_mouse_homescreen.x)
                 browser.addData('browser_mouse_homescreen.y', browser_mouse_homescreen.y)
@@ -6999,6 +7160,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 task_bar.show()
                 
                 win.winHandle.activate()
+                serial_connector.write(SerialConnector.BROWSER_NAVIGATION_BEGIN)
                 browser_navigation_textbox.reset()
                 browser_navigation_textbox.setPos((0, 1.0 - FONT_SIZE / 2))
                 browser_navigation_textbox.setSize((2.0, FONT_SIZE))
@@ -7113,7 +7275,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                         # keyboard checking is just starting
                         browser_navigation_user_key_release.clock.reset()  # now t=0
                     if browser_navigation_user_key_release.status == STARTED:
-                        theseKeys = browser_navigation_user_key_release.getKeys(keyList=[browser_searchbar.WORD_LIST], ignoreKeys=["escape"], waitRelease=True)
+                        theseKeys = browser_navigation_user_key_release.getKeys(keyList=None, ignoreKeys=["escape"], waitRelease=True)
                         _browser_navigation_user_key_release_allKeys.extend(theseKeys)
                         if len(_browser_navigation_user_key_release_allKeys):
                             browser_navigation_user_key_release.keys = [key.name for key in _browser_navigation_user_key_release_allKeys]  # storing all keys
@@ -7162,6 +7324,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 setupWindow(expInfo=expInfo, win=win)
                 # Run 'End Routine' code from browser_navigation_code
                 browser_searchbar.log()
+                serial_connector.write(SerialConnector.BROWSER_NAVIGATION_END)
                 # store data for browser (TrialHandler)
                 browser.addData('browser_navigation_mouse.x', browser_navigation_mouse.x)
                 browser.addData('browser_navigation_mouse.y', browser_navigation_mouse.y)
@@ -7191,6 +7354,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 # Run 'Begin Routine' code from browser_content_code
                 form_overlay.reset()
                 form_overlay.show()
+                serial_connector.write(SerialConnector.BROWSER_CONTENT_BEGIN)
                 browser_textbox.reset()
                 browser_textbox.setPos((0, 1.0 - FONT_SIZE / 2))
                 browser_textbox.setSize((2.0, FONT_SIZE))
@@ -7330,6 +7494,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 # Run 'End Routine' code from browser_content_code
                 form_overlay.log()
                 form_overlay.hide()
+                serial_connector.write(SerialConnector.BROWSER_CONTENT_END)
                 # store data for browser (TrialHandler)
                 browser.addData('browser_content_mouse.x', browser_content_mouse.x)
                 browser.addData('browser_content_mouse.y', browser_content_mouse.y)
@@ -7353,6 +7518,8 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 base_window.allocate_target()
                 base_window.show()
                 task_bar.show()
+                
+                serial_connector.write(SerialConnector.WINDOW_CLOSE_BEGIN)
                 close_textbox.reset()
                 close_textbox.setPos((0, 1.0 - FONT_SIZE / 2))
                 close_textbox.setSize((2.0, FONT_SIZE))
@@ -7508,6 +7675,8 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 # Run 'End Routine' code from close_code
                 base_window.log()
                 hide_all()
+                
+                serial_connector.write(SerialConnector.WINDOW_CLOSE_END)
                 # store data for browser (TrialHandler)
                 browser.addData('window_close_mouse.x', window_close_mouse.x)
                 browser.addData('window_close_mouse.y', window_close_mouse.y)
@@ -7543,6 +7712,8 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
     experiment_end.status = NOT_STARTED
     continueRoutine = True
     # update component parameters for each repeat
+    # Run 'Begin Routine' code from experiment_end_code
+    serial_connector.write(SerialConnector.EXP_END)
     # setup some python lists for storing info about the experiment_end_mouse
     experiment_end_mouse.x = []
     experiment_end_mouse.y = []
@@ -7551,6 +7722,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
     experiment_end_mouse.rightButton = []
     experiment_end_mouse.time = []
     gotValidClick = False  # until a click is received
+    experiment_end_mouse.mouseClock.reset()
     # create starting attributes for experiment_end_key
     experiment_end_key.keys = []
     experiment_end_key.rt = []
@@ -7607,17 +7779,16 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
         # *experiment_end_mouse* updates
         
         # if experiment_end_mouse is starting this frame...
-        if experiment_end_mouse.status == NOT_STARTED and t >= 0.0-frameTolerance:
+        if experiment_end_mouse.status == NOT_STARTED and tThisFlip >= 0.0-frameTolerance:
             # keep track of start time/frame for later
             experiment_end_mouse.frameNStart = frameN  # exact frame index
             experiment_end_mouse.tStart = t  # local t and not account for scr refresh
             experiment_end_mouse.tStartRefresh = tThisFlipGlobal  # on global time
             win.timeOnFlip(experiment_end_mouse, 'tStartRefresh')  # time at next scr refresh
             # add timestamp to datafile
-            thisExp.addData('experiment_end_mouse.started', t)
+            thisExp.timestampOnFlip(win, 'experiment_end_mouse.started')
             # update status
             experiment_end_mouse.status = STARTED
-            experiment_end_mouse.mouseClock.reset()
             prevButtonState = experiment_end_mouse.getPressed()  # if button is down already this ISN'T a new click
         if experiment_end_mouse.status == STARTED:  # only update if started and not finished!
             buttons = experiment_end_mouse.getPressed()
@@ -7701,6 +7872,8 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
     experiment_end.tStop = globalClock.getTime(format='float')
     experiment_end.tStopRefresh = tThisFlipGlobal
     thisExp.addData('experiment_end.stopped', experiment_end.tStop)
+    # Run 'End Routine' code from experiment_end_code
+    serial_connector.write(SerialConnector.EEG_STOP_RECORDING)
     # store data for thisExp (ExperimentHandler)
     thisExp.addData('experiment_end_mouse.x', experiment_end_mouse.x)
     thisExp.addData('experiment_end_mouse.y', experiment_end_mouse.y)
@@ -7718,6 +7891,8 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
     thisExp.nextEntry()
     # the Routine "experiment_end" was not non-slip safe, so reset the non-slip timer
     routineTimer.reset()
+    # Run 'End Experiment' code from experiment_end_code
+    serial_connector.close()
     
     # mark experiment as finished
     endExperiment(thisExp, win=win)
