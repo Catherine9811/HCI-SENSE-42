@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 This experiment was created using PsychoPy3 Experiment Builder (v2024.2.3),
-    on February 14, 2025, at 16:08
+    on February 15, 2025, at 10:17
 If you publish work using this script the most relevant publication is:
 
     Peirce J, Gray JR, Simpson S, MacAskill M, Höchenberger R, Sogo H, Kastman E, Lindeløv JK. (2019) 
@@ -517,6 +517,54 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
     # Run 'Begin Experiment' code from global_code
     FONT_SIZE = 0.1
     
+    class CameraConnector:
+        def __init__(self):
+            self.camRecFolder = thisExp.dataFileName + '_cam_recorded'
+            if not os.path.isdir(self.camRecFolder):
+                os.mkdir(self.camRecFolder)
+            
+            deviceManager = hardware.DeviceManager()
+            deviceManager.addDevice(
+                deviceClass='psychopy.hardware.microphone.MicrophoneDevice',
+                deviceName='default_microphone',
+                index=None,
+                channels=None, 
+                sampleRateHz=48000, 
+                maxRecordingSize=24000.0
+            )
+            self.camera = deviceManager.addDevice(
+                deviceClass='psychopy.hardware.camera.Camera',
+                deviceName='camera',
+                cameraLib='ffpyplayer', 
+                device='default',
+                mic='default_microphone', 
+                frameRate=None, 
+                frameSize=None
+            )
+        
+        def open(self):
+            self.camera.open()
+            
+        def record(self):
+            self.camera.record()
+            
+        def save(self):
+            self.camera.stop()
+            # Save cam recording
+            camFilename = os.path.join(
+                self.camRecFolder, 
+                'recording_cam_%s.mp4' % data.utils.getDateStr()
+            )
+            thisExp.addData('camera.filename', camFilename)
+            self.camera.save(camFilename, encoderLib='ffpyplayer')
+        
+        def close(self):
+            self.camera.close()
+    
+    camera_connector = CameraConnector()
+    camera_connector.open()
+    
+    
     class Stylizer:
         STYLES = ["windows", "mac"]
         predefined_style = None
@@ -905,7 +953,8 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 "Temporal Demand: How hurried or rushed was the pace of the task?",
                 "Performance: How successful were you in accomplishing what you were asked to do?",
                 "Effort: How hard did you have to work to accomplish your level of performance?",
-                "Frustration: How insecure, discouraged, irritated, stressed, and annoyed were you?"
+                "Frustration: How insecure, discouraged, irritated, stressed, and annoyed were you?",
+                "Attentiveness: How focused were you on performing the task?"
             ]
             labels = [
                 ["extremely alert", "", "alert", "", "neither alert nor sleepy", "", "sleepy", "", "very sleepy"],
@@ -915,11 +964,13 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 ["failure", "", "", "okay", "", "", "perfect"],
                 ["very low", "", "", "medium", "", "", "very high"],
                 ["very low", "", "", "medium", "", "", "very high"],
+                ["not at all", "", "", "", "", "", "", "completely"],
             ]
             ticks = [
                 (1, 2, 3, 4, 5, 6, 7, 8, 9),
                 (1, 2, 3, 4, 5, 6, 7),
                 #(1, 2, 3, 4, 5, 6, 7),
+                (1, 2, 3, 4, 5, 6, 7),
                 (1, 2, 3, 4, 5, 6, 7),
                 (1, 2, 3, 4, 5, 6, 7),
                 (1, 2, 3, 4, 5, 6, 7),
@@ -1632,6 +1683,28 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
             self.COMPONENTS.append(self.background)
     
     
+    
+    class CameraView(Component):
+        BAR_SIZE = 0.1
+        
+        def __init__(self):
+            super().__init__()
+            self.draw_interface()
+            
+        def draw_interface(self):
+            camera = deviceManager.getDevice('camera')
+            self.view = visual.ImageStim(
+                win=win,
+                name='live_camera_view', 
+                image=camera, mask=None, anchor='top-left',
+                ori=0.0, pos=(-1, 1), draggable=False, size=(self.BAR_SIZE, self.BAR_SIZE),
+                color=[1,1,1], colorSpace='rgb', opacity=None,
+                flipHoriz=False, flipVert=False,
+                texRes=128.0, interpolate=True, depth=-1.0)
+            self.view.setAutoDraw(True)
+            self.COMPONENTS.append(self.view)
+        
+    
     def hide_all():
         task_bar.hide()
         base_window.hide()
@@ -1687,8 +1760,10 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
     split_view_editor = SplitViewEditor()
     single_view_editor = SingleViewEditor()
     notification = Notification(style=stylizer)
+    camera_view = CameraView()
     
     hide_all()
+    
     
     # --- Initialize components for Routine "calibration_start" ---
     calibration_start_text = visual.TextStim(win=win, name='calibration_start_text',
@@ -2318,6 +2393,8 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
         flipHoriz=False, flipVert=False,
         texRes=128.0, interpolate=True, depth=-3.0)
     
+    # --- Initialize components for Routine "loop_end" ---
+    
     # --- Initialize components for Routine "experiment_end" ---
     experiment_end_text = visual.TextStim(win=win, name='experiment_end_text',
         text='End of Experiment\n\n\nThank you very much for your participation!\n\npress any key to exit...',
@@ -2370,6 +2447,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
     # update component parameters for each repeat
     # Run 'Begin Routine' code from global_code
     serial_connector.write(SerialConnector.EEG_START_RECORDING)
+    camera_view.show()
     # store start times for definition
     definition.tStartRefresh = win.getFutureFlipTime(clock=globalClock)
     definition.tStart = globalClock.getTime(format='float')
@@ -2454,6 +2532,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
     # update component parameters for each repeat
     # Run 'Begin Routine' code from calibration_start_code
     serial_connector.write(SerialConnector.CALIB_BEGIN)
+    camera_connector.record()
     # setup some python lists for storing info about the calibration_start_mouse
     calibration_start_mouse.x = []
     calibration_start_mouse.y = []
@@ -3196,6 +3275,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
     # Run 'Begin Routine' code from calibration_end_code
     print(personalized_settings)
     serial_connector.write(SerialConnector.CALIB_END)
+    camera_connector.save()
     # setup some python lists for storing info about the calibration_end_mouse
     calibration_end_mouse.x = []
     calibration_end_mouse.y = []
@@ -3627,6 +3707,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
         # update component parameters for each repeat
         # Run 'Begin Routine' code from style_randomizer_code
         reset_layout()
+        camera_connector.record()
         # store start times for style_randomizer
         style_randomizer.tStartRefresh = win.getFutureFlipTime(clock=globalClock)
         style_randomizer.tStart = globalClock.getTime(format='float')
@@ -7695,6 +7776,92 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
         if thisSession is not None:
             # if running in a Session with a Liaison client, send data up to now
             thisSession.sendExperimentData()
+        
+        # --- Prepare to start Routine "loop_end" ---
+        # create an object to store info about Routine loop_end
+        loop_end = data.Routine(
+            name='loop_end',
+            components=[],
+        )
+        loop_end.status = NOT_STARTED
+        continueRoutine = True
+        # update component parameters for each repeat
+        # Run 'Begin Routine' code from loop_end_code
+        camera_connector.save()
+        # store start times for loop_end
+        loop_end.tStartRefresh = win.getFutureFlipTime(clock=globalClock)
+        loop_end.tStart = globalClock.getTime(format='float')
+        loop_end.status = STARTED
+        thisExp.addData('loop_end.started', loop_end.tStart)
+        loop_end.maxDuration = None
+        # keep track of which components have finished
+        loop_endComponents = loop_end.components
+        for thisComponent in loop_end.components:
+            thisComponent.tStart = None
+            thisComponent.tStop = None
+            thisComponent.tStartRefresh = None
+            thisComponent.tStopRefresh = None
+            if hasattr(thisComponent, 'status'):
+                thisComponent.status = NOT_STARTED
+        # reset timers
+        t = 0
+        _timeToFirstFrame = win.getFutureFlipTime(clock="now")
+        frameN = -1
+        
+        # --- Run Routine "loop_end" ---
+        # if trial has changed, end Routine now
+        if isinstance(trials, data.TrialHandler2) and thisTrial.thisN != trials.thisTrial.thisN:
+            continueRoutine = False
+        loop_end.forceEnded = routineForceEnded = not continueRoutine
+        while continueRoutine:
+            # get current time
+            t = routineTimer.getTime()
+            tThisFlip = win.getFutureFlipTime(clock=routineTimer)
+            tThisFlipGlobal = win.getFutureFlipTime(clock=None)
+            frameN = frameN + 1  # number of completed frames (so 0 is the first frame)
+            # update/draw components on each frame
+            
+            # check for quit (typically the Esc key)
+            if defaultKeyboard.getKeys(keyList=["escape"]):
+                thisExp.status = FINISHED
+            if thisExp.status == FINISHED or endExpNow:
+                endExperiment(thisExp, win=win)
+                return
+            # pause experiment here if requested
+            if thisExp.status == PAUSED:
+                pauseExperiment(
+                    thisExp=thisExp, 
+                    win=win, 
+                    timers=[routineTimer], 
+                    playbackComponents=[]
+                )
+                # skip the frame we paused on
+                continue
+            
+            # check if all components have finished
+            if not continueRoutine:  # a component has requested a forced-end of Routine
+                loop_end.forceEnded = routineForceEnded = True
+                break
+            continueRoutine = False  # will revert to True if at least one component still running
+            for thisComponent in loop_end.components:
+                if hasattr(thisComponent, "status") and thisComponent.status != FINISHED:
+                    continueRoutine = True
+                    break  # at least one component has not yet finished
+            
+            # refresh the screen
+            if continueRoutine:  # don't flip if this routine is over or we'll get a blank screen
+                win.flip()
+        
+        # --- Ending Routine "loop_end" ---
+        for thisComponent in loop_end.components:
+            if hasattr(thisComponent, "setAutoDraw"):
+                thisComponent.setAutoDraw(False)
+        # store stop times for loop_end
+        loop_end.tStop = globalClock.getTime(format='float')
+        loop_end.tStopRefresh = tThisFlipGlobal
+        thisExp.addData('loop_end.stopped', loop_end.tStop)
+        # the Routine "loop_end" was not non-slip safe, so reset the non-slip timer
+        routineTimer.reset()
         thisExp.nextEntry()
         
     # completed 60.0 repeats of 'trials'
@@ -7714,6 +7881,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
     # update component parameters for each repeat
     # Run 'Begin Routine' code from experiment_end_code
     serial_connector.write(SerialConnector.EXP_END)
+    camera_view.hide()
     # setup some python lists for storing info about the experiment_end_mouse
     experiment_end_mouse.x = []
     experiment_end_mouse.y = []
@@ -7893,6 +8061,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
     routineTimer.reset()
     # Run 'End Experiment' code from experiment_end_code
     serial_connector.close()
+    camera_connector.close()
     
     # mark experiment as finished
     endExperiment(thisExp, win=win)
