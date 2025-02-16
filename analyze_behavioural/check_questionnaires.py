@@ -6,7 +6,7 @@ import addcopyfighandler
 from data_parser import DataParser
 
 
-file_path = r"data\094814_explorer_2025-01-31_13h44.24.341.psydat"
+file_path = r"../data/001_explorer_2025-02-15_15h23.13.921.psydat"
 parser = DataParser(file_path)
 print(parser)
 
@@ -14,18 +14,20 @@ print(parser)
 Questionnaire Keys
 sleepiness:_how_sleepy_are_you_slider
 mental_demand:_how_mentally_demanding_was_the_task_slider
-physical_demand:_how_physically_demanding_was_the_task_slider
+#physical_demand:_how_physically_demanding_was_the_task_slider
 temporal_demand:_how_hurried_or_rushed_was_the_pace_of_the_task_slider
 performance:_how_successful_were_you_in_accomplishing_what_you_were_asked_to_do_slider
 effort:_how_hard_did_you_have_to_work_to_accomplish_your_level_of_performance_slider
 frustration:_how_insecure__discouraged__irritated__stressed__and_annoyed_were_you_slider
+attentiveness:_how_focused_were_you_on_performing_the_task_slider
 """
 
 questionnaires = parser['browser_content']
 
 # Extracting values for plotting
-x_values = [entry["browser_content.started"] for entry in questionnaires]
-y_values = [entry["sleepiness:_how_sleepy_are_you_slider"] for entry in questionnaires]
+question_name = "sleepiness:_how_sleepy_are_you_slider"
+x_values = [entry["browser_content.started"] + entry[f"{question_name}.rt"] for entry in questionnaires]
+y_values = [entry[f"{question_name}.rating"] for entry in questionnaires]
 
 # Apply paper-style settings
 sns.set_theme(style="whitegrid", context="paper")

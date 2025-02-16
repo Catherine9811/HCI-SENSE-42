@@ -6,7 +6,19 @@ import addcopyfighandler
 from collections import defaultdict
 from data_parser import DataParser
 
-file_path = r"data\094814_explorer_2025-01-31_13h44.24.341.psydat"
+
+def total_movements(x, y):
+    if len(x) < 2 or len(y) < 2:
+        return 0  # Not enough points to calculate movement
+
+    # Compute total trajectory distance (sum of Euclidean distances between consecutive points)
+    total_distance = sum(np.hypot(np.diff(x), np.diff(y)))
+
+    # Avoid division by zero
+    return total_distance
+
+
+file_path = r"../data/001_explorer_2025-02-15_15h23.13.921.psydat"
 parser = DataParser(file_path)
 print(parser)
 
@@ -20,13 +32,16 @@ sns.set_theme(style="whitegrid", context="paper")
 stylizer = parser["operating_system_style"]
 style_mapping = {
     entry["trials.thisN"]: entry["operating_system_style"]
-    for entry in stylizer
+    for entry in stylizer if 'trials.thisN' in entry
 }
 
 for task_name, task_key in [
-    ('Closing Window', 'window_close_mouse.started'),
+    # ('Closing Window', 'window_close_mouse.started'),
+    ('Opening Folder', 'stimuli_reaction_mouse_movement.started'),
 ]:
     typing_task = parser[task_key]
+
+    # typing_task = [entry for entry in typing_task if entry['window_close_target_name'] == 'Minimize']
 
     # Extracting values for plotting
     x_values = [entry[f"{task_key}"] for entry in typing_task]
@@ -35,9 +50,13 @@ for task_name, task_key in [
 
     for entry in typing_task:
         # Get right keys for entry
-        candidates = [key for key in entry.keys() if key.endswith(".window_close_mouse.time") and len(entry[key]) > 0]
-        assert len(candidates) > 0
-        y_values.append(entry[candidates[-1]][-1])
+        candidates = [key for key in entry.keys()
+                      if key.endswith(f".{task_key.replace('started', 'time')}") and len(entry[key]) > 0]
+        assert len(candidates) > 0, f"{candidates}"
+        key = candidates[-1]
+        x = entry[key.replace(".time", ".x")]
+        y = entry[key.replace(".time", ".y")]
+        y_values.append(total_movements(x, y) / entry[key][-1])
     g_values = [entry[f"trials.thisN"] for entry in typing_task]
 
     # Group data
@@ -70,8 +89,8 @@ for task_name, task_key in [
 
 # Labels and title
 plt.xlabel("Time (seconds)")
-plt.ylabel("Time Spent (seconds)")
-plt.title("Time Used in Closing Windows Over Time")
+plt.ylabel("Moving Speed (unit/second)")
+plt.title("Mouse Moving Speed Over Time")
 plt.legend()
 
 # Show the plot

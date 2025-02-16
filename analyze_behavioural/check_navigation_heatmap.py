@@ -6,7 +6,7 @@ import addcopyfighandler
 from collections import defaultdict
 from data_parser import DataParser
 
-file_path = r"data\094814_explorer_2025-01-31_13h44.24.341.psydat"
+file_path = r"../data/001_explorer_2025-02-15_15h23.13.921.psydat"
 parser = DataParser(file_path)
 print(parser)
 
@@ -17,7 +17,7 @@ sns.set_theme(style="whitegrid", context="paper")
 stylizer = parser["operating_system_style"]
 style_mapping = {
     entry["trials.thisN"]: entry["operating_system_style"]
-    for entry in stylizer
+    for entry in stylizer if 'trials.thisN' in entry
 }
 
 mouse_pattern = r"^.*\.time$"

@@ -7,7 +7,11 @@ import addcopyfighandler
 from data_parser import DataParser
 
 
-file_path = r"data\094814_explorer_2025-01-31_13h44.24.341.psydat"
+def count_effective_keys(keys):
+    return len(keys) - 2 * keys.count('backspace')
+
+
+file_path = r"../data/001_explorer_2025-02-15_15h23.13.921.psydat"
 parser = DataParser(file_path)
 print(parser)
 
@@ -23,16 +27,16 @@ for task_name, task_key, task_prefix, task_keyboard in [
     typing_task = parser[task_key]
     # Extracting values for plotting
     x_values = [entry[f"{task_key}.started"] for entry in typing_task]
-    y_values = []
-    for entry in typing_task:
-        y_values.append(entry[f"{task_keyboard}.keys"].count("backspace"))
+    y_values = [
+        count_effective_keys(entry[f"{task_keyboard}.keys"]) / (entry[f"{task_key}.stopped"] - entry[f"{task_key}.started"])
+        for entry in typing_task]
 
     plt.plot(x_values, y_values, marker='o', linestyle='-', label=task_name)
 
 # Labels and title
 plt.xlabel("Time (seconds)")
-plt.ylabel("Number of Deletions")
-plt.title("Errors in Typing Tasks Over Time")
+plt.ylabel("Typed Characters per Second")
+plt.title("Typing Speed in Typing Tasks Over Time")
 plt.legend()
 
 # Show the plot

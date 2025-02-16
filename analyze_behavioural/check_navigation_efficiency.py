@@ -4,6 +4,9 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import addcopyfighandler
 from collections import defaultdict
+
+from matplotlib.lines import Line2D
+
 from data_parser import DataParser
 
 
@@ -21,7 +24,7 @@ def effective_movement_ratio(x, y):
     return straight_line_distance / total_distance if total_distance > 0 else 0
 
 
-file_path = r"data\094814_explorer_2025-01-31_13h44.24.341.psydat"
+file_path = r"../data/001_explorer_2025-02-15_15h23.13.921.psydat"
 parser = DataParser(file_path)
 print(parser)
 
@@ -34,14 +37,20 @@ sns.set_theme(style="whitegrid", context="paper")
 stylizer = parser["operating_system_style"]
 style_mapping = {
     entry["trials.thisN"]: entry["operating_system_style"]
-    for entry in stylizer
+    for entry in stylizer if 'trials.thisN' in entry
 }
 
-
 for task_name, task_key in [
-    ('Closing Window', 'window_close_mouse.started'),
+    ('Close Window', 'window_close_mouse.started'),
+    # ('Open Files', 'file_manager_mouse_homescreen.started'),
+    # ('Open Trash', 'trash_bin_mouse_homescreen.started'),
+    # ('Open Notes', 'notes_mouse_homescreen.started'),
+    # ('Open Browser', 'browser_mouse_homescreen.started')
+
 ]:
     typing_task = parser[task_key]
+
+    # typing_task = [entry for entry in typing_task if entry['window_close_target_name'] == 'Minimize']
 
     # Extracting values for plotting
     x_values = [entry[f"{task_key}"] for entry in typing_task]
@@ -50,8 +59,9 @@ for task_name, task_key in [
 
     for entry in typing_task:
         # Get right keys for entry
-        candidates = [key for key in entry.keys() if key.endswith(".window_close_mouse.time") and len(entry[key]) > 0]
-        assert len(candidates) > 0
+        candidates = [key for key in entry.keys()
+                      if key.endswith(f".{task_key.replace('started', 'time')}") and len(entry[key]) > 0]
+        assert len(candidates) > 0, f"{candidates}"
         key = candidates[-1]
         x = entry[key.replace(".time", ".x")]
         y = entry[key.replace(".time", ".y")]
@@ -81,7 +91,8 @@ for task_name, task_key in [
 
     for style in x_means:
         # Plot error bars
-        plt.errorbar(x_means[style], y_means[style], yerr=y_errors[style], fmt='o', capsize=5, label=style,
+        plt.errorbar(x_means[style], y_means[style], yerr=y_errors[style], fmt='o', capsize=5,
+                     label=f"{task_name} {style}"
                      # xerr=x_errors
                      )
 
@@ -90,6 +101,7 @@ for task_name, task_key in [
 plt.xlabel("Time (seconds)")
 plt.ylabel("Effective Moving Percentage (%)")
 plt.title("Mouse Navigation Efficiency Over Time")
+
 plt.legend()
 
 # Show the plot

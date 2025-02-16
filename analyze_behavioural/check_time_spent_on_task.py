@@ -6,7 +6,7 @@ import addcopyfighandler
 from collections import defaultdict
 from data_parser import DataParser
 
-file_path = r"data\094814_explorer_2025-01-31_13h44.24.341.psydat"
+file_path = r"../data/001_explorer_2025-02-15_15h23.13.921.psydat"
 parser = DataParser(file_path)
 print(parser)
 
@@ -16,11 +16,12 @@ plt.figure(figsize=(6, 4))
 sns.set_theme(style="whitegrid", context="paper")
 
 for task_name, task_key in [
-    # ('Dragging Files', 'file_manager_dragging'),
+    ('Dragging Files', 'file_manager_dragging'),
     ('Clicking Files', 'file_manager_opening'),
-    # ('Closing Windows', 'window_close'),
+    ('Closing Windows', 'window_close'),
     ('Mail Notification', 'mail_notification'),
-    ('Confirm Button', 'trash_bin_confirm')
+    ('Confirm Button', 'trash_bin_confirm'),
+    ('Select Files', 'trash_bin_select')
 ]:
     typing_task = parser[task_key]
 

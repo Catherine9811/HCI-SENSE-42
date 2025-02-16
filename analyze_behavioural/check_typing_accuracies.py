@@ -7,7 +7,7 @@ import addcopyfighandler
 from data_parser import DataParser
 
 
-def get_final_text(keys, rt, duration):
+def get_final_text(keys, rt, duration, ignore_deletion=False):
     text = ""
     shift_active = set()
 
@@ -21,7 +21,8 @@ def get_final_text(keys, rt, duration):
         if key in ["lshift", "rshift", "return"]:
             continue
         elif key == "backspace":
-            text = text[:-1]  # Remove last character
+            if not ignore_deletion:
+                text = text[:-1]  # Remove last character
         elif key == "space":
             text += " "
         else:
@@ -33,7 +34,7 @@ def get_final_text(keys, rt, duration):
 
     return text
 
-file_path = r"data\094814_explorer_2025-01-31_13h44.24.341.psydat"
+file_path = r"../data/001_explorer_2025-02-15_15h23.13.921.psydat"
 parser = DataParser(file_path)
 print(parser)
 
@@ -51,7 +52,7 @@ for task_name, task_key, task_prefix, task_keyboard in [
     x_values = [entry[f"{task_key}.started"] for entry in typing_task]
     y_values = []
     for entry in typing_task:
-        text = get_final_text(entry[f"{task_keyboard}.keys"], entry[f"{task_keyboard}.rt"], entry[f"{task_keyboard}.duration"])
+        text = get_final_text(entry[f"{task_keyboard}.keys"], entry[f"{task_keyboard}.rt"], entry[f"{task_keyboard}.duration"], ignore_deletion=True)
         y_values.append(jellyfish.jaro_similarity(entry[f"{task_prefix}_repeat_source"], text))
     # Enable when the data collection is fixed
     # y_values = [jellyfish.jaro_similarity(entry[f"{task_prefix}_repeat_source"], entry[f"{task_prefix}_repeat_target"]) for entry in typing_task]

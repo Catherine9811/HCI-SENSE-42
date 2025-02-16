@@ -5,7 +5,7 @@ import seaborn as sns
 import addcopyfighandler
 from data_parser import DataParser
 
-file_path = r"data\094814_explorer_2025-01-31_13h44.24.341.psydat"
+file_path = r"../data/001_explorer_2025-02-15_15h23.13.921.psydat"
 parser = DataParser(file_path)
 print(parser)
 
