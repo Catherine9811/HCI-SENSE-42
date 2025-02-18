@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 This experiment was created using PsychoPy3 Experiment Builder (v2024.2.3),
-    on February 18, 2025, at 11:32
+    on February 18, 2025, at 20:18
 If you publish work using this script the most relevant publication is:
 
     Peirce J, Gray JR, Simpson S, MacAskill M, Höchenberger R, Sogo H, Kastman E, Lindeløv JK. (2019) 
@@ -520,11 +520,25 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
     # Run 'Begin Experiment' code from global_code
     FONT_SIZE = 0.1
     
+    class StoppableThread(threading.Thread):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self._should_stop = threading.Event()
+            self._is_finished = False  # Flag to track if the thread's main loop has finished
+    
+        def stop(self):
+            self._should_stop.set()
+    
+        @property
+        def running(self):
+            # Return 0 if the thread is still running, 1 if it has finished
+            return 1 if self._is_finished else 0
+    
+    
     class VideoRecorder:
         def __init__(self, camera_index=0):
             self.camera_index = camera_index
             self.cap = None
-            self.is_recording = False
             self.out = None
             self.thread = None
             self.latest_frame = None
@@ -546,39 +560,36 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
             if self.cap is None:
                 raise Exception("Camera is not opened")
     
-            if self.is_recording:
+            if self.thread and not self.thread._should_stop.is_set():
                 raise Exception("Already recording")
     
-            self.is_recording = True
             # Save cam recording
             camFilename = os.path.join(
                 self.camRecFolder, 
                 'recording_cam_%s.mp4' % data.utils.getDateStr()
             )
             thisExp.addData('camera.filename', camFilename)
-            self.thread = threading.Thread(target=self._record_loop, args=(camFilename,), daemon=True)
+            self.thread = StoppableThread(target=self._record_loop, args=(camFilename,), daemon=True)
             self.thread.start()
     
         def _record_loop(self, filename):
             fourcc = cv2.VideoWriter_fourcc(*'mp4v')
             self.out = cv2.VideoWriter(filename, fourcc, self.frame_rate, self.frame_size)
     
-            while self.is_recording and self.cap.isOpened():
+            while not self.thread._should_stop.is_set() and self.cap.isOpened():
                 ret, frame = self.cap.read()
                 if not ret:
                     time.sleep(1 / self.frame_rate * 0.1)
                     continue
                 self.out.write(frame)
-                # if we have a new frame, update the frame information
+                # Update the latest frame
                 videoFrameArray = np.ascontiguousarray(
                     cv2.cvtColor(frame, cv2.COLOR_BGR2RGB).flatten(), dtype=np.uint8)
-                # provide the last frame
                 self.latest_frame = MovieFrame(
                     frameIndex=0,
                     absTime=0.0,
-                    # displayTime=self._recentMetadata['frame_size'],
                     size=self.frame_size,
-                    colorFormat='rgb24',  # converted in thread
+                    colorFormat='rgb24',
                     colorData=videoFrameArray,
                     audioChannels=0,
                     audioSamples=None,
@@ -588,6 +599,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 time.sleep(1 / self.frame_rate * 0.5)
     
             self.out.release()
+            self.thread._is_finished = True  # Mark the thread as finished
     
         def getVideoFrame(self):
             return self.latest_frame
@@ -597,8 +609,9 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
             return self.frame_size
     
         def save(self):
-            if self.is_recording:
-                self.is_recording = False
+            if not self.thread._should_stop.is_set():
+                self.thread.stop()
+            if self.thread.running == 0:
                 self.thread.join()
     
             if self.out:
@@ -617,8 +630,9 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
             return available_cameras
     
         def close(self):
-            if self.is_recording:
-                self.is_recording = False
+            if not self.thread._should_stop.is_set():
+                self.thread.stop()
+            if self.thread.running == 0:
                 self.thread.join()
             if self.cap:
                 self.cap.release()
@@ -1761,7 +1775,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 image=camera_connector, mask=None, anchor='top-left',
                 ori=0.0, pos=(-1, 1), draggable=False, size=(self.BAR_SIZE, self.BAR_SIZE),
                 color=[1,1,1], colorSpace='rgb', opacity=None,
-                flipHoriz=False, flipVert=False,
+                flipHoriz=True, flipVert=False,
                 texRes=128.0, interpolate=True, depth=-1.0)
             self.view.setAutoDraw(True)
             self.COMPONENTS.append(self.view)
@@ -1909,6 +1923,22 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
     
     # --- Initialize components for Routine "calibration_typing" ---
     calibration_typing_key = keyboard.Keyboard(deviceName='calibration_typing_key')
+    calibration_typing_prompt = visual.TextBox2(
+         win, text='Please complete the content', placeholder='Type here...', font='Open Sans',
+         ori=0.0, pos=[0,0], draggable=False, units='norm',     letterHeight=0.05,
+         size=1.0, borderWidth=2.0,
+         color='black', colorSpace='rgb',
+         opacity=None,
+         bold=False, italic=False,
+         lineSpacing=1.0, speechPoint=None,
+         padding=0.0, alignment='center',
+         anchor='center', overflow='visible',
+         fillColor=None, borderColor=None,
+         flipHoriz=False, flipVert=False, languageStyle='LTR',
+         editable=False,
+         name='calibration_typing_prompt',
+         depth=-2, autoLog=False,
+    )
     
     # --- Initialize components for Routine "calibration_end" ---
     calibration_end_text = visual.TextStim(win=win, name='calibration_end_text',
@@ -2171,13 +2201,6 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
         color=[1,1,1], colorSpace='rgb', opacity=None,
         flipHoriz=False, flipVert=False,
         texRes=128.0, interpolate=True, depth=-3.0)
-    stimuli_reaction_mouse_debug = visual.TextStim(win=win, name='stimuli_reaction_mouse_debug',
-        text='',
-        font='Open Sans',
-        units='norm', pos=(0, 0), draggable=False, height=0.05, wrapWidth=None, ori=0.0, 
-        color='lightgrey', colorSpace='rgb', opacity=None, 
-        languageStyle='LTR',
-        depth=-4.0);
     
     # --- Initialize components for Routine "window_close" ---
     close_textbox = visual.TextBox2(
@@ -3238,7 +3261,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
     # create an object to store info about Routine calibration_typing
     calibration_typing = data.Routine(
         name='calibration_typing',
-        components=[calibration_typing_key],
+        components=[calibration_typing_key, calibration_typing_prompt],
     )
     calibration_typing.status = NOT_STARTED
     continueRoutine = True
@@ -3260,6 +3283,9 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
     calibration_typing_key.keys = []
     calibration_typing_key.rt = []
     _calibration_typing_key_allKeys = []
+    calibration_typing_prompt.reset()
+    calibration_typing_prompt.setPos((0, 1.0 - FONT_SIZE / 2))
+    calibration_typing_prompt.setSize((2.0, FONT_SIZE))
     # store start times for calibration_typing
     calibration_typing.tStartRefresh = win.getFutureFlipTime(clock=globalClock)
     calibration_typing.tStart = globalClock.getTime(format='float')
@@ -3315,6 +3341,24 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 calibration_typing_key.keys = [key.name for key in _calibration_typing_key_allKeys]  # storing all keys
                 calibration_typing_key.rt = [key.rt for key in _calibration_typing_key_allKeys]
                 calibration_typing_key.duration = [key.duration for key in _calibration_typing_key_allKeys]
+        
+        # *calibration_typing_prompt* updates
+        
+        # if calibration_typing_prompt is starting this frame...
+        if calibration_typing_prompt.status == NOT_STARTED and tThisFlip >= 0.0-frameTolerance:
+            # keep track of start time/frame for later
+            calibration_typing_prompt.frameNStart = frameN  # exact frame index
+            calibration_typing_prompt.tStart = t  # local t and not account for scr refresh
+            calibration_typing_prompt.tStartRefresh = tThisFlipGlobal  # on global time
+            win.timeOnFlip(calibration_typing_prompt, 'tStartRefresh')  # time at next scr refresh
+            # update status
+            calibration_typing_prompt.status = STARTED
+            calibration_typing_prompt.setAutoDraw(True)
+        
+        # if calibration_typing_prompt is active this frame...
+        if calibration_typing_prompt.status == STARTED:
+            # update params
+            pass
         
         # check for quit (typically the Esc key)
         if defaultKeyboard.getKeys(keyList=["escape"]):
@@ -5515,7 +5559,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                     # create an object to store info about Routine file_manager_opening
                     file_manager_opening = data.Routine(
                         name='file_manager_opening',
-                        components=[file_manager_opening_textbox, stimuli_reaction_mouse_movement, stimuli_reaction_stimuli_image, stimuli_reaction_mouse_debug],
+                        components=[file_manager_opening_textbox, stimuli_reaction_mouse_movement, stimuli_reaction_stimuli_image],
                     )
                     file_manager_opening.status = NOT_STARTED
                     continueRoutine = True
@@ -5658,26 +5702,6 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                         if stimuli_reaction_stimuli_image.status == STARTED:
                             # update params
                             pass
-                        
-                        # *stimuli_reaction_mouse_debug* updates
-                        
-                        # if stimuli_reaction_mouse_debug is starting this frame...
-                        if stimuli_reaction_mouse_debug.status == NOT_STARTED and tThisFlip >= 0.0-frameTolerance:
-                            # keep track of start time/frame for later
-                            stimuli_reaction_mouse_debug.frameNStart = frameN  # exact frame index
-                            stimuli_reaction_mouse_debug.tStart = t  # local t and not account for scr refresh
-                            stimuli_reaction_mouse_debug.tStartRefresh = tThisFlipGlobal  # on global time
-                            win.timeOnFlip(stimuli_reaction_mouse_debug, 'tStartRefresh')  # time at next scr refresh
-                            # add timestamp to datafile
-                            thisExp.timestampOnFlip(win, 'stimuli_reaction_mouse_debug.started')
-                            # update status
-                            stimuli_reaction_mouse_debug.status = STARTED
-                            stimuli_reaction_mouse_debug.setAutoDraw(True)
-                        
-                        # if stimuli_reaction_mouse_debug is active this frame...
-                        if stimuli_reaction_mouse_debug.status == STARTED:
-                            # update params
-                            stimuli_reaction_mouse_debug.setText("{:.2f}".format(np.linalg.norm(stimuli_reaction_mouse_movement.getPos() - np.array([loc_x, loc_y]))), log=False)
                         
                         # check for quit (typically the Esc key)
                         if defaultKeyboard.getKeys(keyList=["escape"]):
