@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 This experiment was created using PsychoPy3 Experiment Builder (v2024.2.3),
-    on February 15, 2025, at 10:17
+    on February 18, 2025, at 11:32
 If you publish work using this script the most relevant publication is:
 
     Peirce J, Gray JR, Simpson S, MacAskill M, Höchenberger R, Sogo H, Kastman E, Lindeløv JK. (2019) 
@@ -35,6 +35,9 @@ from psychopy.hardware import keyboard
 
 # Run 'Before Experiment' code from global_code
 import re
+import cv2
+import threading, time
+from psychopy.visual.movies import MovieFrame
 from psychopy import logging
 logging.console.setLevel(logging.CRITICAL)
 
@@ -103,12 +106,12 @@ class SerialConnector:
     ## Answered questions will be encoded as 
     ## QUESTION_BASE + QUESTION_LEAP * QUESTION_INDEX + QUESTION_RATING
     
-    EEG_STOP_RECORDING = 254
-    EEG_START_RECORDING = 255
+    EEG_STOP_RECORDING = 255
+    EEG_START_RECORDING = 254
 
     def __init__(self, com: str, bit_rate: int):
         try:
-            self.port = serial.Serial(com, bit_rate, write_timeout=1, timeout=1)
+            self.port = serial.Serial(com, bit_rate, write_timeout=0.1, timeout=0.1)
         except Exception as e:
             self.port = None
             logging.critical("EEG recording is not enabled!")
@@ -517,51 +520,111 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
     # Run 'Begin Experiment' code from global_code
     FONT_SIZE = 0.1
     
-    class CameraConnector:
-        def __init__(self):
+    class VideoRecorder:
+        def __init__(self, camera_index=0):
+            self.camera_index = camera_index
+            self.cap = None
+            self.is_recording = False
+            self.out = None
+            self.thread = None
+            self.latest_frame = None
+            self.frame_size = (1280, 720)
+            self.frame_rate = 30
             self.camRecFolder = thisExp.dataFileName + '_cam_recorded'
             if not os.path.isdir(self.camRecFolder):
                 os.mkdir(self.camRecFolder)
-            
-            deviceManager = hardware.DeviceManager()
-            deviceManager.addDevice(
-                deviceClass='psychopy.hardware.microphone.MicrophoneDevice',
-                deviceName='default_microphone',
-                index=None,
-                channels=None, 
-                sampleRateHz=48000, 
-                maxRecordingSize=24000.0
-            )
-            self.camera = deviceManager.addDevice(
-                deviceClass='psychopy.hardware.camera.Camera',
-                deviceName='camera',
-                cameraLib='ffpyplayer', 
-                device='default',
-                mic='default_microphone', 
-                frameRate=None, 
-                frameSize=None
-            )
-        
+    
         def open(self):
-            self.camera.open()
-            
+            self.cap = cv2.VideoCapture(self.camera_index)
+            if not self.cap.isOpened():
+                raise Exception("Could not open camera")
+            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.frame_size[0])
+            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.frame_size[1])
+            self.cap.set(cv2.CAP_PROP_FPS, self.frame_rate)
+    
         def record(self):
-            self.camera.record()
-            
-        def save(self):
-            self.camera.stop()
+            if self.cap is None:
+                raise Exception("Camera is not opened")
+    
+            if self.is_recording:
+                raise Exception("Already recording")
+    
+            self.is_recording = True
             # Save cam recording
             camFilename = os.path.join(
                 self.camRecFolder, 
                 'recording_cam_%s.mp4' % data.utils.getDateStr()
             )
             thisExp.addData('camera.filename', camFilename)
-            self.camera.save(camFilename, encoderLib='ffpyplayer')
-        
-        def close(self):
-            self.camera.close()
+            self.thread = threading.Thread(target=self._record_loop, args=(camFilename,), daemon=True)
+            self.thread.start()
     
-    camera_connector = CameraConnector()
+        def _record_loop(self, filename):
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            self.out = cv2.VideoWriter(filename, fourcc, self.frame_rate, self.frame_size)
+    
+            while self.is_recording and self.cap.isOpened():
+                ret, frame = self.cap.read()
+                if not ret:
+                    time.sleep(1 / self.frame_rate * 0.1)
+                    continue
+                self.out.write(frame)
+                # if we have a new frame, update the frame information
+                videoFrameArray = np.ascontiguousarray(
+                    cv2.cvtColor(frame, cv2.COLOR_BGR2RGB).flatten(), dtype=np.uint8)
+                # provide the last frame
+                self.latest_frame = MovieFrame(
+                    frameIndex=0,
+                    absTime=0.0,
+                    # displayTime=self._recentMetadata['frame_size'],
+                    size=self.frame_size,
+                    colorFormat='rgb24',  # converted in thread
+                    colorData=videoFrameArray,
+                    audioChannels=0,
+                    audioSamples=None,
+                    metadata=None,
+                    movieLib="opencv",
+                    userData=None)
+                time.sleep(1 / self.frame_rate * 0.5)
+    
+            self.out.release()
+    
+        def getVideoFrame(self):
+            return self.latest_frame
+    
+        @property
+        def frameSize(self):
+            return self.frame_size
+    
+        def save(self):
+            if self.is_recording:
+                self.is_recording = False
+                self.thread.join()
+    
+            if self.out:
+                self.out.release()
+    
+        def list(self):
+            index = 0
+            available_cameras = []
+            while True:
+                cap = cv2.VideoCapture(index)
+                if not cap.read()[0]:
+                    break
+                available_cameras.append(index)
+                cap.release()
+                index += 1
+            return available_cameras
+    
+        def close(self):
+            if self.is_recording:
+                self.is_recording = False
+                self.thread.join()
+            if self.cap:
+                self.cap.release()
+            cv2.destroyAllWindows()
+    
+    camera_connector = VideoRecorder()
     camera_connector.open()
     
     
@@ -1692,11 +1755,10 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
             self.draw_interface()
             
         def draw_interface(self):
-            camera = deviceManager.getDevice('camera')
             self.view = visual.ImageStim(
                 win=win,
                 name='live_camera_view', 
-                image=camera, mask=None, anchor='top-left',
+                image=camera_connector, mask=None, anchor='top-left',
                 ori=0.0, pos=(-1, 1), draggable=False, size=(self.BAR_SIZE, self.BAR_SIZE),
                 color=[1,1,1], colorSpace='rgb', opacity=None,
                 flipHoriz=False, flipVert=False,
@@ -1764,6 +1826,13 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
     
     hide_all()
     
+    global_text = visual.TextStim(win=win, name='global_text',
+        text='Loading...',
+        font='Open Sans',
+        pos=(0, 0), draggable=False, height=0.05, wrapWidth=None, ori=0.0, 
+        color='white', colorSpace='rgb', opacity=None, 
+        languageStyle='LTR',
+        depth=-1.0);
     
     # --- Initialize components for Routine "calibration_start" ---
     calibration_start_text = visual.TextStim(win=win, name='calibration_start_text',
@@ -2440,19 +2509,18 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
     # create an object to store info about Routine definition
     definition = data.Routine(
         name='definition',
-        components=[],
+        components=[global_text],
     )
     definition.status = NOT_STARTED
     continueRoutine = True
     # update component parameters for each repeat
     # Run 'Begin Routine' code from global_code
     serial_connector.write(SerialConnector.EEG_START_RECORDING)
-    camera_view.show()
+    
     # store start times for definition
     definition.tStartRefresh = win.getFutureFlipTime(clock=globalClock)
     definition.tStart = globalClock.getTime(format='float')
     definition.status = STARTED
-    thisExp.addData('definition.started', definition.tStart)
     definition.maxDuration = None
     # keep track of which components have finished
     definitionComponents = definition.components
@@ -2470,13 +2538,47 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
     
     # --- Run Routine "definition" ---
     definition.forceEnded = routineForceEnded = not continueRoutine
-    while continueRoutine:
+    while continueRoutine and routineTimer.getTime() < 1.0:
         # get current time
         t = routineTimer.getTime()
         tThisFlip = win.getFutureFlipTime(clock=routineTimer)
         tThisFlipGlobal = win.getFutureFlipTime(clock=None)
         frameN = frameN + 1  # number of completed frames (so 0 is the first frame)
         # update/draw components on each frame
+        
+        # *global_text* updates
+        
+        # if global_text is starting this frame...
+        if global_text.status == NOT_STARTED and tThisFlip >= 0.0-frameTolerance:
+            # keep track of start time/frame for later
+            global_text.frameNStart = frameN  # exact frame index
+            global_text.tStart = t  # local t and not account for scr refresh
+            global_text.tStartRefresh = tThisFlipGlobal  # on global time
+            win.timeOnFlip(global_text, 'tStartRefresh')  # time at next scr refresh
+            # add timestamp to datafile
+            thisExp.timestampOnFlip(win, 'global_text.started')
+            # update status
+            global_text.status = STARTED
+            global_text.setAutoDraw(True)
+        
+        # if global_text is active this frame...
+        if global_text.status == STARTED:
+            # update params
+            pass
+        
+        # if global_text is stopping this frame...
+        if global_text.status == STARTED:
+            # is it time to stop? (based on global clock, using actual start)
+            if tThisFlipGlobal > global_text.tStartRefresh + 1.0-frameTolerance:
+                # keep track of stop time/frame for later
+                global_text.tStop = t  # not accounting for scr refresh
+                global_text.tStopRefresh = tThisFlipGlobal  # on global time
+                global_text.frameNStop = frameN  # exact frame index
+                # add timestamp to datafile
+                thisExp.timestampOnFlip(win, 'global_text.stopped')
+                # update status
+                global_text.status = FINISHED
+                global_text.setAutoDraw(False)
         
         # check for quit (typically the Esc key)
         if defaultKeyboard.getKeys(keyList=["escape"]):
@@ -2516,10 +2618,14 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
     # store stop times for definition
     definition.tStop = globalClock.getTime(format='float')
     definition.tStopRefresh = tThisFlipGlobal
-    thisExp.addData('definition.stopped', definition.tStop)
+    # using non-slip timing so subtract the expected duration of this Routine (unless ended on request)
+    if definition.maxDurationReached:
+        routineTimer.addTime(-definition.maxDuration)
+    elif definition.forceEnded:
+        routineTimer.reset()
+    else:
+        routineTimer.addTime(-1.000000)
     thisExp.nextEntry()
-    # the Routine "definition" was not non-slip safe, so reset the non-slip timer
-    routineTimer.reset()
     
     # --- Prepare to start Routine "calibration_start" ---
     # create an object to store info about Routine calibration_start
@@ -2691,6 +2797,8 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
     calibration_start.tStop = globalClock.getTime(format='float')
     calibration_start.tStopRefresh = tThisFlipGlobal
     thisExp.addData('calibration_start.stopped', calibration_start.tStop)
+    # Run 'End Routine' code from calibration_start_code
+    camera_view.show()
     # store data for thisExp (ExperimentHandler)
     thisExp.addData('calibration_start_mouse.x', calibration_start_mouse.x)
     thisExp.addData('calibration_start_mouse.y', calibration_start_mouse.y)
@@ -3274,8 +3382,9 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
     # update component parameters for each repeat
     # Run 'Begin Routine' code from calibration_end_code
     print(personalized_settings)
+    camera_view.hide()
+    
     serial_connector.write(SerialConnector.CALIB_END)
-    camera_connector.save()
     # setup some python lists for storing info about the calibration_end_mouse
     calibration_end_mouse.x = []
     calibration_end_mouse.y = []
@@ -3458,6 +3567,8 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
     # Run 'End Routine' code from calibration_end_code
     for key_name, key_value in personalized_settings.items():
         thisExp.addData(key_name, key_value)
+    
+    camera_connector.save()
     # store data for thisExp (ExperimentHandler)
     thisExp.addData('calibration_end_mouse.x', calibration_end_mouse.x)
     thisExp.addData('calibration_end_mouse.y', calibration_end_mouse.y)
@@ -3787,7 +3898,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
         setupWindow(expInfo=expInfo, win=win)
         # Run 'End Routine' code from style_randomizer_code
         stylizer.log()
-        
+        camera_view.show()
         if event_timer.should_end():
             trials.finished = True
         # the Routine "style_randomizer" was not non-slip safe, so reset the non-slip timer
@@ -4021,7 +4132,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 thisExp.addData('mail_homescreen.stopped', mail_homescreen.tStop)
                 setupWindow(expInfo=expInfo, win=win)
                 # Run 'End Routine' code from mail_code_homescreen
-                serial_connector.write(SerialConnector.MAIL_HOMESCREEN_END)
+                #serial_connector.write(SerialConnector.MAIL_HOMESCREEN_END)
                 # store data for mail (TrialHandler)
                 mail.addData('mail_mouse_homescreen.x', mail_mouse_homescreen.x)
                 mail.addData('mail_mouse_homescreen.y', mail_mouse_homescreen.y)
@@ -4185,7 +4296,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 setupWindow(expInfo=expInfo, win=win)
                 # Run 'End Routine' code from mail_notification_code
                 notification.hide()
-                serial_connector.write(SerialConnector.MAIL_NOTIFICATION_END)
+                #serial_connector.write(SerialConnector.MAIL_NOTIFICATION_END)
                 # store data for mail (TrialHandler)
                 mail.addData('mail_notification_mouse.x', mail_notification_mouse.x)
                 mail.addData('mail_notification_mouse.y', mail_notification_mouse.y)
@@ -4347,7 +4458,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 # Run 'End Routine' code from mail_content_code
                 single_view_editor.log()
                 single_view_editor.hide()
-                serial_connector.write(SerialConnector.MAIL_CONTENT_END)
+                #serial_connector.write(SerialConnector.MAIL_CONTENT_END)
                 # check responses
                 if mail_content_user_key_release.keys in ['', [], None]:  # No response was made
                     mail_content_user_key_release.keys = None
@@ -4529,7 +4640,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 base_window.log()
                 hide_all()
                 
-                serial_connector.write(SerialConnector.WINDOW_CLOSE_END)
+                #serial_connector.write(SerialConnector.WINDOW_CLOSE_END)
                 # store data for mail (TrialHandler)
                 mail.addData('window_close_mouse.x', window_close_mouse.x)
                 mail.addData('window_close_mouse.y', window_close_mouse.y)
@@ -4716,7 +4827,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 setupWindow(expInfo=expInfo, win=win)
                 # Run 'End Routine' code from file_manager_code_homescreen
                 
-                serial_connector.write(SerialConnector.FILE_MANAGER_HOMESCREEN_END)
+                #serial_connector.write(SerialConnector.FILE_MANAGER_HOMESCREEN_END)
                 # store data for file_manager_dragging_task (TrialHandler)
                 file_manager_dragging_task.addData('file_manager_mouse_homescreen.x', file_manager_mouse_homescreen.x)
                 file_manager_dragging_task.addData('file_manager_mouse_homescreen.y', file_manager_mouse_homescreen.y)
@@ -4982,7 +5093,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                     thisExp.addData('target_location', (target_x, target_y))
                     thisExp.addData('last_clicked_offset', tuple(last_clicked_offset))
                     
-                    serial_connector.write(SerialConnector.FILE_MANAGER_DRAGGING_END)
+                    #serial_connector.write(SerialConnector.FILE_MANAGER_DRAGGING_END)
                     # store data for file_dragging (TrialHandler)
                     file_dragging.addData('stimuli_dragging_mouse.x', stimuli_dragging_mouse.x)
                     file_dragging.addData('stimuli_dragging_mouse.y', stimuli_dragging_mouse.y)
@@ -5171,7 +5282,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 base_window.log()
                 hide_all()
                 
-                serial_connector.write(SerialConnector.WINDOW_CLOSE_END)
+                #serial_connector.write(SerialConnector.WINDOW_CLOSE_END)
                 # store data for file_manager_dragging_task (TrialHandler)
                 file_manager_dragging_task.addData('window_close_mouse.x', window_close_mouse.x)
                 file_manager_dragging_task.addData('window_close_mouse.y', window_close_mouse.y)
@@ -5358,7 +5469,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 setupWindow(expInfo=expInfo, win=win)
                 # Run 'End Routine' code from file_manager_code_homescreen
                 
-                serial_connector.write(SerialConnector.FILE_MANAGER_HOMESCREEN_END)
+                #serial_connector.write(SerialConnector.FILE_MANAGER_HOMESCREEN_END)
                 # store data for file_manager_opening_task (TrialHandler)
                 file_manager_opening_task.addData('file_manager_mouse_homescreen.x', file_manager_mouse_homescreen.x)
                 file_manager_opening_task.addData('file_manager_mouse_homescreen.y', file_manager_mouse_homescreen.y)
@@ -5612,7 +5723,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                     thisExp.addData('stimuli_reaction_size', size)
                     thisExp.addData('stimuli_reaction_radius', radius)
                     thisExp.addData('stimuli_reaction_stimuli_location', (loc_x, loc_y))
-                    serial_connector.write(SerialConnector.FILE_MANAGER_OPENING_END)
+                    #serial_connector.write(SerialConnector.FILE_MANAGER_OPENING_END)
                     # store data for file_opening (TrialHandler)
                     file_opening.addData('stimuli_reaction_mouse_movement.x', stimuli_reaction_mouse_movement.x)
                     file_opening.addData('stimuli_reaction_mouse_movement.y', stimuli_reaction_mouse_movement.y)
@@ -5801,7 +5912,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 base_window.log()
                 hide_all()
                 
-                serial_connector.write(SerialConnector.WINDOW_CLOSE_END)
+                #serial_connector.write(SerialConnector.WINDOW_CLOSE_END)
                 # store data for file_manager_opening_task (TrialHandler)
                 file_manager_opening_task.addData('window_close_mouse.x', window_close_mouse.x)
                 file_manager_opening_task.addData('window_close_mouse.y', window_close_mouse.y)
@@ -5988,7 +6099,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 setupWindow(expInfo=expInfo, win=win)
                 # Run 'End Routine' code from trash_bin_code_homescreen
                 
-                serial_connector.write(SerialConnector.TRASH_BIN_HOMESCREEN_END)
+                #serial_connector.write(SerialConnector.TRASH_BIN_HOMESCREEN_END)
                 # store data for trash_bin (TrialHandler)
                 trash_bin.addData('trash_bin_mouse_homescreen.x', trash_bin_mouse_homescreen.x)
                 trash_bin.addData('trash_bin_mouse_homescreen.y', trash_bin_mouse_homescreen.y)
@@ -6153,7 +6264,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 setupWindow(expInfo=expInfo, win=win)
                 # Run 'End Routine' code from trash_bin_select_code
                 trash_items_overlay.log()
-                serial_connector.write(SerialConnector.TRASH_BIN_SELECT_END)
+                #serial_connector.write(SerialConnector.TRASH_BIN_SELECT_END)
                 # store data for trash_bin (TrialHandler)
                 trash_bin.addData('trash_bin_select_mouse.x', trash_bin_select_mouse.x)
                 trash_bin.addData('trash_bin_select_mouse.y', trash_bin_select_mouse.y)
@@ -6316,7 +6427,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 trash_items_overlay.hide()
                 popup_window.hide()
                 task_bar.set_trash_empty()
-                serial_connector.write(SerialConnector.TRASH_BIN_CONFIRM_END)
+                #serial_connector.write(SerialConnector.TRASH_BIN_CONFIRM_END)
                 # store data for trash_bin (TrialHandler)
                 trash_bin.addData('trash_bin_confirm_mouse.x', trash_bin_confirm_mouse.x)
                 trash_bin.addData('trash_bin_confirm_mouse.y', trash_bin_confirm_mouse.y)
@@ -6498,7 +6609,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 base_window.log()
                 hide_all()
                 
-                serial_connector.write(SerialConnector.WINDOW_CLOSE_END)
+                #serial_connector.write(SerialConnector.WINDOW_CLOSE_END)
                 # store data for trash_bin (TrialHandler)
                 trash_bin.addData('window_close_mouse.x', window_close_mouse.x)
                 trash_bin.addData('window_close_mouse.y', window_close_mouse.y)
@@ -6685,7 +6796,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 setupWindow(expInfo=expInfo, win=win)
                 # Run 'End Routine' code from notes_code_homescreen
                 
-                serial_connector.write(SerialConnector.NOTES_HOMESCREEN_END)
+                #serial_connector.write(SerialConnector.NOTES_HOMESCREEN_END)
                 # store data for notes (TrialHandler)
                 notes.addData('notes_mouse_homescreen.x', notes_mouse_homescreen.x)
                 notes.addData('notes_mouse_homescreen.y', notes_mouse_homescreen.y)
@@ -6844,7 +6955,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 split_view_editor.log()
                 #print(split_view_editor.notes_repeat_source.text, split_view_editor.notes_repeat_target.text)
                 split_view_editor.hide()
-                serial_connector.write(SerialConnector.NOTES_REPEAT_END)
+                #serial_connector.write(SerialConnector.NOTES_REPEAT_END)
                 # check responses
                 if notes_repeat_keyboard.keys in ['', [], None]:  # No response was made
                     notes_repeat_keyboard.keys = None
@@ -7026,7 +7137,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 base_window.log()
                 hide_all()
                 
-                serial_connector.write(SerialConnector.WINDOW_CLOSE_END)
+                #serial_connector.write(SerialConnector.WINDOW_CLOSE_END)
                 # store data for notes (TrialHandler)
                 notes.addData('window_close_mouse.x', window_close_mouse.x)
                 notes.addData('window_close_mouse.y', window_close_mouse.y)
@@ -7213,7 +7324,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 setupWindow(expInfo=expInfo, win=win)
                 # Run 'End Routine' code from browser_code_homescreen
                 
-                serial_connector.write(SerialConnector.BROWSER_HOMESCREEN_END)
+                #serial_connector.write(SerialConnector.BROWSER_HOMESCREEN_END)
                 # store data for browser (TrialHandler)
                 browser.addData('browser_mouse_homescreen.x', browser_mouse_homescreen.x)
                 browser.addData('browser_mouse_homescreen.y', browser_mouse_homescreen.y)
@@ -7405,7 +7516,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 setupWindow(expInfo=expInfo, win=win)
                 # Run 'End Routine' code from browser_navigation_code
                 browser_searchbar.log()
-                serial_connector.write(SerialConnector.BROWSER_NAVIGATION_END)
+                #serial_connector.write(SerialConnector.BROWSER_NAVIGATION_END)
                 # store data for browser (TrialHandler)
                 browser.addData('browser_navigation_mouse.x', browser_navigation_mouse.x)
                 browser.addData('browser_navigation_mouse.y', browser_navigation_mouse.y)
@@ -7575,7 +7686,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 # Run 'End Routine' code from browser_content_code
                 form_overlay.log()
                 form_overlay.hide()
-                serial_connector.write(SerialConnector.BROWSER_CONTENT_END)
+                #serial_connector.write(SerialConnector.BROWSER_CONTENT_END)
                 # store data for browser (TrialHandler)
                 browser.addData('browser_content_mouse.x', browser_content_mouse.x)
                 browser.addData('browser_content_mouse.y', browser_content_mouse.y)
@@ -7757,7 +7868,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 base_window.log()
                 hide_all()
                 
-                serial_connector.write(SerialConnector.WINDOW_CLOSE_END)
+                #serial_connector.write(SerialConnector.WINDOW_CLOSE_END)
                 # store data for browser (TrialHandler)
                 browser.addData('window_close_mouse.x', window_close_mouse.x)
                 browser.addData('window_close_mouse.y', window_close_mouse.y)
@@ -7787,7 +7898,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
         continueRoutine = True
         # update component parameters for each repeat
         # Run 'Begin Routine' code from loop_end_code
-        camera_connector.save()
+        camera_view.hide()
         # store start times for loop_end
         loop_end.tStartRefresh = win.getFutureFlipTime(clock=globalClock)
         loop_end.tStart = globalClock.getTime(format='float')
@@ -7860,6 +7971,8 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
         loop_end.tStop = globalClock.getTime(format='float')
         loop_end.tStopRefresh = tThisFlipGlobal
         thisExp.addData('loop_end.stopped', loop_end.tStop)
+        # Run 'End Routine' code from loop_end_code
+        camera_connector.save()
         # the Routine "loop_end" was not non-slip safe, so reset the non-slip timer
         routineTimer.reset()
         thisExp.nextEntry()
@@ -7881,7 +7994,6 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
     # update component parameters for each repeat
     # Run 'Begin Routine' code from experiment_end_code
     serial_connector.write(SerialConnector.EXP_END)
-    camera_view.hide()
     # setup some python lists for storing info about the experiment_end_mouse
     experiment_end_mouse.x = []
     experiment_end_mouse.y = []
@@ -8059,7 +8171,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
     thisExp.nextEntry()
     # the Routine "experiment_end" was not non-slip safe, so reset the non-slip timer
     routineTimer.reset()
-    # Run 'End Experiment' code from experiment_end_code
+    # Run 'End Experiment' code from global_code
     serial_connector.close()
     camera_connector.close()
     
@@ -8138,6 +8250,7 @@ def quit(thisExp, win=None, thisSession=None):
 # if running this experiment as a script...
 if __name__ == '__main__':
     # call all functions in order
+    expInfo = showExpInfoDlg(expInfo=expInfo)
     thisExp = setupData(expInfo=expInfo)
     logFile = setupLogging(filename=thisExp.dataFileName)
     win = setupWindow(expInfo=expInfo)
