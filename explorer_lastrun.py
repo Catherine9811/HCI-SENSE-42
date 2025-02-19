@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 This experiment was created using PsychoPy3 Experiment Builder (v2024.2.3),
-    on February 18, 2025, at 20:18
+    on February 19, 2025, at 19:49
 If you publish work using this script the most relevant publication is:
 
     Peirce J, Gray JR, Simpson S, MacAskill M, Höchenberger R, Sogo H, Kastman E, Lindeløv JK. (2019) 
@@ -451,9 +451,6 @@ def pauseExperiment(thisExp, win=None, timers=[], playbackComponents=[]):
         )
     # run a while loop while we wait to unpause
     while thisExp.status == PAUSED:
-        # check for quit (typically the Esc key)
-        if defaultKeyboard.getKeys(keyList=['escape']):
-            endExperiment(thisExp, win=win)
         # sleep 1ms so other threads can execute
         clock.time.sleep(0.001)
     # if stop was requested while paused, quit
@@ -1804,11 +1801,22 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
     class EventTimer():
         showed_alertness_prompt = 0
         interval_alertness_prompt = 5 * 60  # seconds
+        showed_pause_prompt = 0
+        interval_pause_prompt = 60
+        pause_enabled = False
         duration_experiment = 2 * 60 * 60 + 5 * 60   # seconds
         keywords = ["MAIL", "FILE_DRAGGING", "FILE_OPENING", "TRASH_BIN", "NOTES"]
         
         def __init__(self):
-            self.clock = core.MonotonicClock()
+            self.clock = core.Clock()
+        
+        def should_pause(self):
+            if self.pause_enabled:
+                return 1
+            return 0
+        
+        def apply_pause(self, offset):
+            self.clock.addTime(-1 * offset)
         
         def should_end(self):
             if self.clock.getTime() > self.duration_experiment:
@@ -1817,11 +1825,18 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
         
         def should_show(self, target):
             if target not in self.keywords:
-                expected_prompt_counts = int(self.clock.getTime() / self.interval_alertness_prompt)
-                if self.showed_alertness_prompt < expected_prompt_counts:
-                    self.showed_alertness_prompt += 1
-                    return 1
-                return 0
+                if target == "PAUSE":
+                    expected_pause_counts = int(self.clock.getTime() / self.interval_pause_prompt)
+                    if self.showed_pause_prompt < expected_pause_counts:
+                        self.showed_pause_prompt += 1
+                        return 1
+                    return 0
+                else:
+                    expected_prompt_counts = int(self.clock.getTime() / self.interval_alertness_prompt)
+                    if self.showed_alertness_prompt < expected_prompt_counts:
+                        self.showed_alertness_prompt += 1
+                        return 1
+                    return 0
             if tasks.thisN == self.keywords.index(target):
                 return 1
             return 0
@@ -2487,6 +2502,27 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
     
     # --- Initialize components for Routine "loop_end" ---
     
+    # --- Initialize components for Routine "pause_screen" ---
+    pause_screen_text = visual.TextStim(win=win, name='pause_screen_text',
+        text='Would you like to interrupt the experiment?\n\n\nIf yes, press ESC to pause the experiment and call one of the organizers for assistance.\n\nOtherwise, click your mouse to continue...',
+        font='Open Sans',
+        pos=(0, 0), draggable=False, height=0.1, wrapWidth=None, ori=0.0, 
+        color='black', colorSpace='rgb', opacity=None, 
+        languageStyle='LTR',
+        depth=0.0);
+    pause_screen_mouse = event.Mouse(win=win)
+    x, y = [None, None]
+    pause_screen_mouse.mouseClock = core.Clock()
+    
+    # --- Initialize components for Routine "pause_on" ---
+    pause_on_text = visual.TextStim(win=win, name='pause_on_text',
+        text='Experiment Paused\n\n\nPlease call one of the organizers for assistance.\n\nWARNING: Only press ENTER to continue if instructed by the organizers.',
+        font='Open Sans',
+        pos=(0, 0), draggable=False, height=0.1, wrapWidth=None, ori=0.0, 
+        color='black', colorSpace='rgb', opacity=None, 
+        languageStyle='LTR',
+        depth=0.0);
+    
     # --- Initialize components for Routine "experiment_end" ---
     experiment_end_text = visual.TextStim(win=win, name='experiment_end_text',
         text='End of Experiment\n\n\nThank you very much for your participation!\n\npress any key to exit...',
@@ -2544,6 +2580,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
     definition.tStartRefresh = win.getFutureFlipTime(clock=globalClock)
     definition.tStart = globalClock.getTime(format='float')
     definition.status = STARTED
+    thisExp.addData('definition.started', definition.tStart)
     definition.maxDuration = None
     # keep track of which components have finished
     definitionComponents = definition.components
@@ -2602,10 +2639,6 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 # update status
                 global_text.status = FINISHED
                 global_text.setAutoDraw(False)
-        
-        # check for quit (typically the Esc key)
-        if defaultKeyboard.getKeys(keyList=["escape"]):
-            thisExp.status = FINISHED
         if thisExp.status == FINISHED or endExpNow:
             endExperiment(thisExp, win=win)
             return
@@ -2641,6 +2674,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
     # store stop times for definition
     definition.tStop = globalClock.getTime(format='float')
     definition.tStopRefresh = tThisFlipGlobal
+    thisExp.addData('definition.stopped', definition.tStop)
     # using non-slip timing so subtract the expected duration of this Routine (unless ended on request)
     if definition.maxDurationReached:
         routineTimer.addTime(-definition.maxDuration)
@@ -2772,7 +2806,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
             calibration_start_key.clock.reset()  # now t=0
             calibration_start_key.clearEvents(eventType='keyboard')
         if calibration_start_key.status == STARTED:
-            theseKeys = calibration_start_key.getKeys(keyList=None, ignoreKeys=["escape"], waitRelease=False)
+            theseKeys = calibration_start_key.getKeys(keyList=None, ignoreKeys=None, waitRelease=False)
             _calibration_start_key_allKeys.extend(theseKeys)
             if len(_calibration_start_key_allKeys):
                 calibration_start_key.keys = _calibration_start_key_allKeys[-1].name  # just the last key pressed
@@ -2780,10 +2814,6 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 calibration_start_key.duration = _calibration_start_key_allKeys[-1].duration
                 # a response ends the routine
                 continueRoutine = False
-        
-        # check for quit (typically the Esc key)
-        if defaultKeyboard.getKeys(keyList=["escape"]):
-            thisExp.status = FINISHED
         if thisExp.status == FINISHED or endExpNow:
             endExperiment(thisExp, win=win)
             return
@@ -2930,10 +2960,6 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
         if calibration_appearance_windows_prompt.status == STARTED:
             # update params
             pass
-        
-        # check for quit (typically the Esc key)
-        if defaultKeyboard.getKeys(keyList=["escape"]):
-            thisExp.status = FINISHED
         if thisExp.status == FINISHED or endExpNow:
             endExperiment(thisExp, win=win)
             return
@@ -3068,10 +3094,6 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
         if calibration_appearance_mac_prompt.status == STARTED:
             # update params
             pass
-        
-        # check for quit (typically the Esc key)
-        if defaultKeyboard.getKeys(keyList=["escape"]):
-            thisExp.status = FINISHED
         if thisExp.status == FINISHED or endExpNow:
             endExperiment(thisExp, win=win)
             return
@@ -3198,7 +3220,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
             win.callOnFlip(calibration_typing_start_key.clock.reset)  # t=0 on next screen flip
             win.callOnFlip(calibration_typing_start_key.clearEvents, eventType='keyboard')  # clear events on next screen flip
         if calibration_typing_start_key.status == STARTED and not waitOnFlip:
-            theseKeys = calibration_typing_start_key.getKeys(keyList=['return'], ignoreKeys=["escape"], waitRelease=False)
+            theseKeys = calibration_typing_start_key.getKeys(keyList=['return'], ignoreKeys=None, waitRelease=False)
             _calibration_typing_start_key_allKeys.extend(theseKeys)
             if len(_calibration_typing_start_key_allKeys):
                 calibration_typing_start_key.keys = _calibration_typing_start_key_allKeys[-1].name  # just the last key pressed
@@ -3206,10 +3228,6 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 calibration_typing_start_key.duration = _calibration_typing_start_key_allKeys[-1].duration
                 # a response ends the routine
                 continueRoutine = False
-        
-        # check for quit (typically the Esc key)
-        if defaultKeyboard.getKeys(keyList=["escape"]):
-            thisExp.status = FINISHED
         if thisExp.status == FINISHED or endExpNow:
             endExperiment(thisExp, win=win)
             return
@@ -3335,7 +3353,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
             # keyboard checking is just starting
             calibration_typing_key.clock.reset()  # now t=0
         if calibration_typing_key.status == STARTED:
-            theseKeys = calibration_typing_key.getKeys(keyList=None, ignoreKeys=["escape"], waitRelease=True)
+            theseKeys = calibration_typing_key.getKeys(keyList=None, ignoreKeys=None, waitRelease=True)
             _calibration_typing_key_allKeys.extend(theseKeys)
             if len(_calibration_typing_key_allKeys):
                 calibration_typing_key.keys = [key.name for key in _calibration_typing_key_allKeys]  # storing all keys
@@ -3359,10 +3377,6 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
         if calibration_typing_prompt.status == STARTED:
             # update params
             pass
-        
-        # check for quit (typically the Esc key)
-        if defaultKeyboard.getKeys(keyList=["escape"]):
-            thisExp.status = FINISHED
         if thisExp.status == FINISHED or endExpNow:
             endExperiment(thisExp, win=win)
             return
@@ -3540,7 +3554,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
             calibration_end_key.clock.reset()  # now t=0
             calibration_end_key.clearEvents(eventType='keyboard')
         if calibration_end_key.status == STARTED:
-            theseKeys = calibration_end_key.getKeys(keyList=None, ignoreKeys=["escape"], waitRelease=False)
+            theseKeys = calibration_end_key.getKeys(keyList=None, ignoreKeys=None, waitRelease=False)
             _calibration_end_key_allKeys.extend(theseKeys)
             if len(_calibration_end_key_allKeys):
                 calibration_end_key.keys = _calibration_end_key_allKeys[-1].name  # just the last key pressed
@@ -3568,10 +3582,6 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
         if calibration_end_debug_text.status == STARTED:
             # update params
             pass
-        
-        # check for quit (typically the Esc key)
-        if defaultKeyboard.getKeys(keyList=["escape"]):
-            thisExp.status = FINISHED
         if thisExp.status == FINISHED or endExpNow:
             endExperiment(thisExp, win=win)
             return
@@ -3752,7 +3762,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
             experiment_start_key.clock.reset()  # now t=0
             experiment_start_key.clearEvents(eventType='keyboard')
         if experiment_start_key.status == STARTED:
-            theseKeys = experiment_start_key.getKeys(keyList=None, ignoreKeys=["escape"], waitRelease=False)
+            theseKeys = experiment_start_key.getKeys(keyList=None, ignoreKeys=None, waitRelease=False)
             _experiment_start_key_allKeys.extend(theseKeys)
             if len(_experiment_start_key_allKeys):
                 experiment_start_key.keys = _experiment_start_key_allKeys[-1].name  # just the last key pressed
@@ -3760,10 +3770,6 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 experiment_start_key.duration = _experiment_start_key_allKeys[-1].duration
                 # a response ends the routine
                 continueRoutine = False
-        
-        # check for quit (typically the Esc key)
-        if defaultKeyboard.getKeys(keyList=["escape"]):
-            thisExp.status = FINISHED
         if thisExp.status == FINISHED or endExpNow:
             endExperiment(thisExp, win=win)
             return
@@ -3899,10 +3905,6 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
             tThisFlipGlobal = win.getFutureFlipTime(clock=None)
             frameN = frameN + 1  # number of completed frames (so 0 is the first frame)
             # update/draw components on each frame
-            
-            # check for quit (typically the Esc key)
-            if defaultKeyboard.getKeys(keyList=["escape"]):
-                thisExp.status = FINISHED
             if thisExp.status == FINISHED or endExpNow:
                 endExperiment(thisExp, win=win)
                 return
@@ -4134,10 +4136,6 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                             # update status
                             mail_textbox_homescreen.status = FINISHED
                             mail_textbox_homescreen.setAutoDraw(False)
-                    
-                    # check for quit (typically the Esc key)
-                    if defaultKeyboard.getKeys(keyList=["escape"]):
-                        thisExp.status = FINISHED
                     if thisExp.status == FINISHED or endExpNow:
                         endExperiment(thisExp, win=win)
                         return
@@ -4297,10 +4295,6 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                     if mail_notification_textbox.status == STARTED:
                         # update params
                         pass
-                    
-                    # check for quit (typically the Esc key)
-                    if defaultKeyboard.getKeys(keyList=["escape"]):
-                        thisExp.status = FINISHED
                     if thisExp.status == FINISHED or endExpNow:
                         endExperiment(thisExp, win=win)
                         return
@@ -4452,16 +4446,12 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                         # keyboard checking is just starting
                         mail_content_user_key_release.clock.reset()  # now t=0
                     if mail_content_user_key_release.status == STARTED:
-                        theseKeys = mail_content_user_key_release.getKeys(keyList=None, ignoreKeys=["escape"], waitRelease=True)
+                        theseKeys = mail_content_user_key_release.getKeys(keyList=None, ignoreKeys=None, waitRelease=True)
                         _mail_content_user_key_release_allKeys.extend(theseKeys)
                         if len(_mail_content_user_key_release_allKeys):
                             mail_content_user_key_release.keys = [key.name for key in _mail_content_user_key_release_allKeys]  # storing all keys
                             mail_content_user_key_release.rt = [key.rt for key in _mail_content_user_key_release_allKeys]
                             mail_content_user_key_release.duration = [key.duration for key in _mail_content_user_key_release_allKeys]
-                    
-                    # check for quit (typically the Esc key)
-                    if defaultKeyboard.getKeys(keyList=["escape"]):
-                        thisExp.status = FINISHED
                     if thisExp.status == FINISHED or endExpNow:
                         endExperiment(thisExp, win=win)
                         return
@@ -4639,10 +4629,6 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                     if success_image.status == STARTED:
                         # update params
                         pass
-                    
-                    # check for quit (typically the Esc key)
-                    if defaultKeyboard.getKeys(keyList=["escape"]):
-                        thisExp.status = FINISHED
                     if thisExp.status == FINISHED or endExpNow:
                         endExperiment(thisExp, win=win)
                         return
@@ -4828,10 +4814,6 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                     if file_manager_textbox_homescreen.status == STARTED:
                         # update params
                         pass
-                    
-                    # check for quit (typically the Esc key)
-                    if defaultKeyboard.getKeys(keyList=["escape"]):
-                        thisExp.status = FINISHED
                     if thisExp.status == FINISHED or endExpNow:
                         endExperiment(thisExp, win=win)
                         return
@@ -5087,10 +5069,6 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                         if stimuli_dragging_stimuli_image.status == STARTED:
                             # update params
                             pass
-                        
-                        # check for quit (typically the Esc key)
-                        if defaultKeyboard.getKeys(keyList=["escape"]):
-                            thisExp.status = FINISHED
                         if thisExp.status == FINISHED or endExpNow:
                             endExperiment(thisExp, win=win)
                             return
@@ -5281,10 +5259,6 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                     if success_image.status == STARTED:
                         # update params
                         pass
-                    
-                    # check for quit (typically the Esc key)
-                    if defaultKeyboard.getKeys(keyList=["escape"]):
-                        thisExp.status = FINISHED
                     if thisExp.status == FINISHED or endExpNow:
                         endExperiment(thisExp, win=win)
                         return
@@ -5470,10 +5444,6 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                     if file_manager_textbox_homescreen.status == STARTED:
                         # update params
                         pass
-                    
-                    # check for quit (typically the Esc key)
-                    if defaultKeyboard.getKeys(keyList=["escape"]):
-                        thisExp.status = FINISHED
                     if thisExp.status == FINISHED or endExpNow:
                         endExperiment(thisExp, win=win)
                         return
@@ -5702,10 +5672,6 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                         if stimuli_reaction_stimuli_image.status == STARTED:
                             # update params
                             pass
-                        
-                        # check for quit (typically the Esc key)
-                        if defaultKeyboard.getKeys(keyList=["escape"]):
-                            thisExp.status = FINISHED
                         if thisExp.status == FINISHED or endExpNow:
                             endExperiment(thisExp, win=win)
                             return
@@ -5891,10 +5857,6 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                     if success_image.status == STARTED:
                         # update params
                         pass
-                    
-                    # check for quit (typically the Esc key)
-                    if defaultKeyboard.getKeys(keyList=["escape"]):
-                        thisExp.status = FINISHED
                     if thisExp.status == FINISHED or endExpNow:
                         endExperiment(thisExp, win=win)
                         return
@@ -6080,10 +6042,6 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                     if trash_bin_textbox_homescreen.status == STARTED:
                         # update params
                         pass
-                    
-                    # check for quit (typically the Esc key)
-                    if defaultKeyboard.getKeys(keyList=["escape"]):
-                        thisExp.status = FINISHED
                     if thisExp.status == FINISHED or endExpNow:
                         endExperiment(thisExp, win=win)
                         return
@@ -6245,10 +6203,6 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                     if trash_bin_select_textbox.status == STARTED:
                         # update params
                         pass
-                    
-                    # check for quit (typically the Esc key)
-                    if defaultKeyboard.getKeys(keyList=["escape"]):
-                        thisExp.status = FINISHED
                     if thisExp.status == FINISHED or endExpNow:
                         endExperiment(thisExp, win=win)
                         return
@@ -6406,10 +6360,6 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                     if trash_bin_confirm_textbox.status == STARTED:
                         # update params
                         pass
-                    
-                    # check for quit (typically the Esc key)
-                    if defaultKeyboard.getKeys(keyList=["escape"]):
-                        thisExp.status = FINISHED
                     if thisExp.status == FINISHED or endExpNow:
                         endExperiment(thisExp, win=win)
                         return
@@ -6588,10 +6538,6 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                     if success_image.status == STARTED:
                         # update params
                         pass
-                    
-                    # check for quit (typically the Esc key)
-                    if defaultKeyboard.getKeys(keyList=["escape"]):
-                        thisExp.status = FINISHED
                     if thisExp.status == FINISHED or endExpNow:
                         endExperiment(thisExp, win=win)
                         return
@@ -6777,10 +6723,6 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                     if notes_textbox_homescreen.status == STARTED:
                         # update params
                         pass
-                    
-                    # check for quit (typically the Esc key)
-                    if defaultKeyboard.getKeys(keyList=["escape"]):
-                        thisExp.status = FINISHED
                     if thisExp.status == FINISHED or endExpNow:
                         endExperiment(thisExp, win=win)
                         return
@@ -6928,16 +6870,12 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                         # keyboard checking is just starting
                         notes_repeat_keyboard.clock.reset()  # now t=0
                     if notes_repeat_keyboard.status == STARTED:
-                        theseKeys = notes_repeat_keyboard.getKeys(keyList=None, ignoreKeys=["escape"], waitRelease=True)
+                        theseKeys = notes_repeat_keyboard.getKeys(keyList=None, ignoreKeys=None, waitRelease=True)
                         _notes_repeat_keyboard_allKeys.extend(theseKeys)
                         if len(_notes_repeat_keyboard_allKeys):
                             notes_repeat_keyboard.keys = [key.name for key in _notes_repeat_keyboard_allKeys]  # storing all keys
                             notes_repeat_keyboard.rt = [key.rt for key in _notes_repeat_keyboard_allKeys]
                             notes_repeat_keyboard.duration = [key.duration for key in _notes_repeat_keyboard_allKeys]
-                    
-                    # check for quit (typically the Esc key)
-                    if defaultKeyboard.getKeys(keyList=["escape"]):
-                        thisExp.status = FINISHED
                     if thisExp.status == FINISHED or endExpNow:
                         endExperiment(thisExp, win=win)
                         return
@@ -7116,10 +7054,6 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                     if success_image.status == STARTED:
                         # update params
                         pass
-                    
-                    # check for quit (typically the Esc key)
-                    if defaultKeyboard.getKeys(keyList=["escape"]):
-                        thisExp.status = FINISHED
                     if thisExp.status == FINISHED or endExpNow:
                         endExperiment(thisExp, win=win)
                         return
@@ -7178,7 +7112,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
             browser = data.TrialHandler2(
                 name='browser',
                 nReps=event_timer.should_show('BROWSER'), 
-                method='sequential', 
+                method='random', 
                 extraInfo=expInfo, 
                 originPath=-1, 
                 trialList=[None], 
@@ -7305,10 +7239,6 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                     if browser_textbox_homescreen.status == STARTED:
                         # update params
                         pass
-                    
-                    # check for quit (typically the Esc key)
-                    if defaultKeyboard.getKeys(keyList=["escape"]):
-                        thisExp.status = FINISHED
                     if thisExp.status == FINISHED or endExpNow:
                         endExperiment(thisExp, win=win)
                         return
@@ -7491,16 +7421,12 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                         # keyboard checking is just starting
                         browser_navigation_user_key_release.clock.reset()  # now t=0
                     if browser_navigation_user_key_release.status == STARTED:
-                        theseKeys = browser_navigation_user_key_release.getKeys(keyList=None, ignoreKeys=["escape"], waitRelease=True)
+                        theseKeys = browser_navigation_user_key_release.getKeys(keyList=None, ignoreKeys=None, waitRelease=True)
                         _browser_navigation_user_key_release_allKeys.extend(theseKeys)
                         if len(_browser_navigation_user_key_release_allKeys):
                             browser_navigation_user_key_release.keys = [key.name for key in _browser_navigation_user_key_release_allKeys]  # storing all keys
                             browser_navigation_user_key_release.rt = [key.rt for key in _browser_navigation_user_key_release_allKeys]
                             browser_navigation_user_key_release.duration = [key.duration for key in _browser_navigation_user_key_release_allKeys]
-                    
-                    # check for quit (typically the Esc key)
-                    if defaultKeyboard.getKeys(keyList=["escape"]):
-                        thisExp.status = FINISHED
                     if thisExp.status == FINISHED or endExpNow:
                         endExperiment(thisExp, win=win)
                         return
@@ -7666,10 +7592,6 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                         browser_content_mouse.midButton.append(buttons[1])
                         browser_content_mouse.rightButton.append(buttons[2])
                         browser_content_mouse.time.append(browser_content_mouse.mouseClock.getTime())
-                    
-                    # check for quit (typically the Esc key)
-                    if defaultKeyboard.getKeys(keyList=["escape"]):
-                        thisExp.status = FINISHED
                     if thisExp.status == FINISHED or endExpNow:
                         endExperiment(thisExp, win=win)
                         return
@@ -7847,10 +7769,6 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                     if success_image.status == STARTED:
                         # update params
                         pass
-                    
-                    # check for quit (typically the Esc key)
-                    if defaultKeyboard.getKeys(keyList=["escape"]):
-                        thisExp.status = FINISHED
                     if thisExp.status == FINISHED or endExpNow:
                         endExperiment(thisExp, win=win)
                         return
@@ -7955,10 +7873,6 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
             tThisFlipGlobal = win.getFutureFlipTime(clock=None)
             frameN = frameN + 1  # number of completed frames (so 0 is the first frame)
             # update/draw components on each frame
-            
-            # check for quit (typically the Esc key)
-            if defaultKeyboard.getKeys(keyList=["escape"]):
-                thisExp.status = FINISHED
             if thisExp.status == FINISHED or endExpNow:
                 endExperiment(thisExp, win=win)
                 return
@@ -7999,6 +7913,324 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
         camera_connector.save()
         # the Routine "loop_end" was not non-slip safe, so reset the non-slip timer
         routineTimer.reset()
+        
+        # set up handler to look after randomisation of conditions etc
+        pause = data.TrialHandler2(
+            name='pause',
+            nReps=event_timer.should_show('PAUSE'), 
+            method='random', 
+            extraInfo=expInfo, 
+            originPath=-1, 
+            trialList=[None], 
+            seed=None, 
+        )
+        thisExp.addLoop(pause)  # add the loop to the experiment
+        thisPause = pause.trialList[0]  # so we can initialise stimuli with some values
+        # abbreviate parameter names if possible (e.g. rgb = thisPause.rgb)
+        if thisPause != None:
+            for paramName in thisPause:
+                globals()[paramName] = thisPause[paramName]
+        
+        for thisPause in pause:
+            currentLoop = pause
+            thisExp.timestampOnFlip(win, 'thisRow.t', format=globalClock.format)
+            # abbreviate parameter names if possible (e.g. rgb = thisPause.rgb)
+            if thisPause != None:
+                for paramName in thisPause:
+                    globals()[paramName] = thisPause[paramName]
+            
+            # --- Prepare to start Routine "pause_screen" ---
+            # create an object to store info about Routine pause_screen
+            pause_screen = data.Routine(
+                name='pause_screen',
+                components=[pause_screen_text, pause_screen_mouse],
+            )
+            pause_screen.status = NOT_STARTED
+            continueRoutine = True
+            # update component parameters for each repeat
+            # setup some python lists for storing info about the pause_screen_mouse
+            pause_screen_mouse.x = []
+            pause_screen_mouse.y = []
+            pause_screen_mouse.leftButton = []
+            pause_screen_mouse.midButton = []
+            pause_screen_mouse.rightButton = []
+            pause_screen_mouse.time = []
+            gotValidClick = False  # until a click is received
+            pause_screen_mouse.mouseClock.reset()
+            # store start times for pause_screen
+            pause_screen.tStartRefresh = win.getFutureFlipTime(clock=globalClock)
+            pause_screen.tStart = globalClock.getTime(format='float')
+            pause_screen.status = STARTED
+            thisExp.addData('pause_screen.started', pause_screen.tStart)
+            pause_screen.maxDuration = None
+            # keep track of which components have finished
+            pause_screenComponents = pause_screen.components
+            for thisComponent in pause_screen.components:
+                thisComponent.tStart = None
+                thisComponent.tStop = None
+                thisComponent.tStartRefresh = None
+                thisComponent.tStopRefresh = None
+                if hasattr(thisComponent, 'status'):
+                    thisComponent.status = NOT_STARTED
+            # reset timers
+            t = 0
+            _timeToFirstFrame = win.getFutureFlipTime(clock="now")
+            frameN = -1
+            
+            # --- Run Routine "pause_screen" ---
+            # if trial has changed, end Routine now
+            if isinstance(pause, data.TrialHandler2) and thisPause.thisN != pause.thisTrial.thisN:
+                continueRoutine = False
+            pause_screen.forceEnded = routineForceEnded = not continueRoutine
+            while continueRoutine:
+                # get current time
+                t = routineTimer.getTime()
+                tThisFlip = win.getFutureFlipTime(clock=routineTimer)
+                tThisFlipGlobal = win.getFutureFlipTime(clock=None)
+                frameN = frameN + 1  # number of completed frames (so 0 is the first frame)
+                # update/draw components on each frame
+                
+                # *pause_screen_text* updates
+                
+                # if pause_screen_text is starting this frame...
+                if pause_screen_text.status == NOT_STARTED and tThisFlip >= 0.0-frameTolerance:
+                    # keep track of start time/frame for later
+                    pause_screen_text.frameNStart = frameN  # exact frame index
+                    pause_screen_text.tStart = t  # local t and not account for scr refresh
+                    pause_screen_text.tStartRefresh = tThisFlipGlobal  # on global time
+                    win.timeOnFlip(pause_screen_text, 'tStartRefresh')  # time at next scr refresh
+                    # add timestamp to datafile
+                    thisExp.timestampOnFlip(win, 'pause_screen_text.started')
+                    # update status
+                    pause_screen_text.status = STARTED
+                    pause_screen_text.setAutoDraw(True)
+                
+                # if pause_screen_text is active this frame...
+                if pause_screen_text.status == STARTED:
+                    # update params
+                    pass
+                # *pause_screen_mouse* updates
+                
+                # if pause_screen_mouse is starting this frame...
+                if pause_screen_mouse.status == NOT_STARTED and tThisFlip >= 0.0-frameTolerance:
+                    # keep track of start time/frame for later
+                    pause_screen_mouse.frameNStart = frameN  # exact frame index
+                    pause_screen_mouse.tStart = t  # local t and not account for scr refresh
+                    pause_screen_mouse.tStartRefresh = tThisFlipGlobal  # on global time
+                    win.timeOnFlip(pause_screen_mouse, 'tStartRefresh')  # time at next scr refresh
+                    # add timestamp to datafile
+                    thisExp.timestampOnFlip(win, 'pause_screen_mouse.started')
+                    # update status
+                    pause_screen_mouse.status = STARTED
+                    prevButtonState = pause_screen_mouse.getPressed()  # if button is down already this ISN'T a new click
+                if pause_screen_mouse.status == STARTED:  # only update if started and not finished!
+                    x, y = pause_screen_mouse.getPos()
+                    pause_screen_mouse.x.append(x)
+                    pause_screen_mouse.y.append(y)
+                    buttons = pause_screen_mouse.getPressed()
+                    pause_screen_mouse.leftButton.append(buttons[0])
+                    pause_screen_mouse.midButton.append(buttons[1])
+                    pause_screen_mouse.rightButton.append(buttons[2])
+                    pause_screen_mouse.time.append(pause_screen_mouse.mouseClock.getTime())
+                    buttons = pause_screen_mouse.getPressed()
+                    if buttons != prevButtonState:  # button state changed?
+                        prevButtonState = buttons
+                        if sum(buttons) > 0:  # state changed to a new click
+                            pass
+                            
+                            continueRoutine = False  # end routine on response
+                # Run 'Each Frame' code from pause_screen_code
+                pressed_keys = event.getKeys()
+                
+                if 'escape' in pressed_keys:
+                    event_timer.pause_enabled = True
+                    continueRoutine = False
+                if thisExp.status == FINISHED or endExpNow:
+                    endExperiment(thisExp, win=win)
+                    return
+                # pause experiment here if requested
+                if thisExp.status == PAUSED:
+                    pauseExperiment(
+                        thisExp=thisExp, 
+                        win=win, 
+                        timers=[routineTimer], 
+                        playbackComponents=[]
+                    )
+                    # skip the frame we paused on
+                    continue
+                
+                # check if all components have finished
+                if not continueRoutine:  # a component has requested a forced-end of Routine
+                    pause_screen.forceEnded = routineForceEnded = True
+                    break
+                continueRoutine = False  # will revert to True if at least one component still running
+                for thisComponent in pause_screen.components:
+                    if hasattr(thisComponent, "status") and thisComponent.status != FINISHED:
+                        continueRoutine = True
+                        break  # at least one component has not yet finished
+                
+                # refresh the screen
+                if continueRoutine:  # don't flip if this routine is over or we'll get a blank screen
+                    win.flip()
+            
+            # --- Ending Routine "pause_screen" ---
+            for thisComponent in pause_screen.components:
+                if hasattr(thisComponent, "setAutoDraw"):
+                    thisComponent.setAutoDraw(False)
+            # store stop times for pause_screen
+            pause_screen.tStop = globalClock.getTime(format='float')
+            pause_screen.tStopRefresh = tThisFlipGlobal
+            thisExp.addData('pause_screen.stopped', pause_screen.tStop)
+            # store data for pause (TrialHandler)
+            pause.addData('pause_screen_mouse.x', pause_screen_mouse.x)
+            pause.addData('pause_screen_mouse.y', pause_screen_mouse.y)
+            pause.addData('pause_screen_mouse.leftButton', pause_screen_mouse.leftButton)
+            pause.addData('pause_screen_mouse.midButton', pause_screen_mouse.midButton)
+            pause.addData('pause_screen_mouse.rightButton', pause_screen_mouse.rightButton)
+            pause.addData('pause_screen_mouse.time', pause_screen_mouse.time)
+            # the Routine "pause_screen" was not non-slip safe, so reset the non-slip timer
+            routineTimer.reset()
+            
+            # set up handler to look after randomisation of conditions etc
+            should_pause = data.TrialHandler2(
+                name='should_pause',
+                nReps=event_timer.should_pause(), 
+                method='random', 
+                extraInfo=expInfo, 
+                originPath=-1, 
+                trialList=[None], 
+                seed=None, 
+            )
+            thisExp.addLoop(should_pause)  # add the loop to the experiment
+            thisShould_pause = should_pause.trialList[0]  # so we can initialise stimuli with some values
+            # abbreviate parameter names if possible (e.g. rgb = thisShould_pause.rgb)
+            if thisShould_pause != None:
+                for paramName in thisShould_pause:
+                    globals()[paramName] = thisShould_pause[paramName]
+            
+            for thisShould_pause in should_pause:
+                currentLoop = should_pause
+                thisExp.timestampOnFlip(win, 'thisRow.t', format=globalClock.format)
+                # abbreviate parameter names if possible (e.g. rgb = thisShould_pause.rgb)
+                if thisShould_pause != None:
+                    for paramName in thisShould_pause:
+                        globals()[paramName] = thisShould_pause[paramName]
+                
+                # --- Prepare to start Routine "pause_on" ---
+                # create an object to store info about Routine pause_on
+                pause_on = data.Routine(
+                    name='pause_on',
+                    components=[pause_on_text],
+                )
+                pause_on.status = NOT_STARTED
+                continueRoutine = True
+                # update component parameters for each repeat
+                # Run 'Begin Routine' code from pause_on_code
+                serial_connector.write(SerialConnector.EEG_STOP_RECORDING)
+                # store start times for pause_on
+                pause_on.tStartRefresh = win.getFutureFlipTime(clock=globalClock)
+                pause_on.tStart = globalClock.getTime(format='float')
+                pause_on.status = STARTED
+                thisExp.addData('pause_on.started', pause_on.tStart)
+                pause_on.maxDuration = None
+                # keep track of which components have finished
+                pause_onComponents = pause_on.components
+                for thisComponent in pause_on.components:
+                    thisComponent.tStart = None
+                    thisComponent.tStop = None
+                    thisComponent.tStartRefresh = None
+                    thisComponent.tStopRefresh = None
+                    if hasattr(thisComponent, 'status'):
+                        thisComponent.status = NOT_STARTED
+                # reset timers
+                t = 0
+                _timeToFirstFrame = win.getFutureFlipTime(clock="now")
+                frameN = -1
+                
+                # --- Run Routine "pause_on" ---
+                # if trial has changed, end Routine now
+                if isinstance(should_pause, data.TrialHandler2) and thisShould_pause.thisN != should_pause.thisTrial.thisN:
+                    continueRoutine = False
+                pause_on.forceEnded = routineForceEnded = not continueRoutine
+                while continueRoutine:
+                    # get current time
+                    t = routineTimer.getTime()
+                    tThisFlip = win.getFutureFlipTime(clock=routineTimer)
+                    tThisFlipGlobal = win.getFutureFlipTime(clock=None)
+                    frameN = frameN + 1  # number of completed frames (so 0 is the first frame)
+                    # update/draw components on each frame
+                    
+                    # *pause_on_text* updates
+                    
+                    # if pause_on_text is starting this frame...
+                    if pause_on_text.status == NOT_STARTED and tThisFlip >= 0.0-frameTolerance:
+                        # keep track of start time/frame for later
+                        pause_on_text.frameNStart = frameN  # exact frame index
+                        pause_on_text.tStart = t  # local t and not account for scr refresh
+                        pause_on_text.tStartRefresh = tThisFlipGlobal  # on global time
+                        win.timeOnFlip(pause_on_text, 'tStartRefresh')  # time at next scr refresh
+                        # add timestamp to datafile
+                        thisExp.timestampOnFlip(win, 'pause_on_text.started')
+                        # update status
+                        pause_on_text.status = STARTED
+                        pause_on_text.setAutoDraw(True)
+                    
+                    # if pause_on_text is active this frame...
+                    if pause_on_text.status == STARTED:
+                        # update params
+                        pass
+                    # Run 'Each Frame' code from pause_on_code
+                    pressed_keys = event.getKeys()
+                    
+                    if 'return' in pressed_keys:
+                        continueRoutine = False
+                    if thisExp.status == FINISHED or endExpNow:
+                        endExperiment(thisExp, win=win)
+                        return
+                    # pause experiment here if requested
+                    if thisExp.status == PAUSED:
+                        pauseExperiment(
+                            thisExp=thisExp, 
+                            win=win, 
+                            timers=[routineTimer], 
+                            playbackComponents=[]
+                        )
+                        # skip the frame we paused on
+                        continue
+                    
+                    # check if all components have finished
+                    if not continueRoutine:  # a component has requested a forced-end of Routine
+                        pause_on.forceEnded = routineForceEnded = True
+                        break
+                    continueRoutine = False  # will revert to True if at least one component still running
+                    for thisComponent in pause_on.components:
+                        if hasattr(thisComponent, "status") and thisComponent.status != FINISHED:
+                            continueRoutine = True
+                            break  # at least one component has not yet finished
+                    
+                    # refresh the screen
+                    if continueRoutine:  # don't flip if this routine is over or we'll get a blank screen
+                        win.flip()
+                
+                # --- Ending Routine "pause_on" ---
+                for thisComponent in pause_on.components:
+                    if hasattr(thisComponent, "setAutoDraw"):
+                        thisComponent.setAutoDraw(False)
+                # store stop times for pause_on
+                pause_on.tStop = globalClock.getTime(format='float')
+                pause_on.tStopRefresh = tThisFlipGlobal
+                thisExp.addData('pause_on.stopped', pause_on.tStop)
+                # Run 'End Routine' code from pause_on_code
+                event_timer.pause_enabled = False
+                event_timer.apply_pause(routineTimer.getTime())
+                print(f"Applied {routineTimer.getTime()}s offset after the pause.")
+                serial_connector.write(SerialConnector.EEG_START_RECORDING)
+                # the Routine "pause_on" was not non-slip safe, so reset the non-slip timer
+                routineTimer.reset()
+            # completed event_timer.should_pause() repeats of 'should_pause'
+            
+        # completed event_timer.should_show('PAUSE') repeats of 'pause'
+        
         thisExp.nextEntry()
         
     # completed 60.0 repeats of 'trials'
@@ -8128,7 +8360,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
             experiment_end_key.clock.reset()  # now t=0
             experiment_end_key.clearEvents(eventType='keyboard')
         if experiment_end_key.status == STARTED:
-            theseKeys = experiment_end_key.getKeys(keyList=None, ignoreKeys=["escape"], waitRelease=False)
+            theseKeys = experiment_end_key.getKeys(keyList=None, ignoreKeys=None, waitRelease=False)
             _experiment_end_key_allKeys.extend(theseKeys)
             if len(_experiment_end_key_allKeys):
                 experiment_end_key.keys = _experiment_end_key_allKeys[-1].name  # just the last key pressed
@@ -8136,10 +8368,6 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                 experiment_end_key.duration = _experiment_end_key_allKeys[-1].duration
                 # a response ends the routine
                 continueRoutine = False
-        
-        # check for quit (typically the Esc key)
-        if defaultKeyboard.getKeys(keyList=["escape"]):
-            thisExp.status = FINISHED
         if thisExp.status == FINISHED or endExpNow:
             endExperiment(thisExp, win=win)
             return
