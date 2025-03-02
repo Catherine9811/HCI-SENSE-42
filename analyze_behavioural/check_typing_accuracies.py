@@ -34,7 +34,7 @@ def get_final_text(keys, rt, duration, ignore_deletion=False):
 
     return text
 
-file_path = r"../data/001_explorer_2025-02-15_15h23.13.921.psydat"
+file_path = r"../data/002_explorer_2025-02-28_14h43.29.510.psydat"
 parser = DataParser(file_path)
 print(parser)
 

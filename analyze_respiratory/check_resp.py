@@ -8,7 +8,7 @@ def round_by(seconds, units):
     return int(seconds/units) * units
 
 
-resp = Resp.from_wav(r"../data/Respiration/P001.wav")
+resp = Resp.from_wav(r"../data/Respiration/P002.wav")
 
 print('''Sampling frequency: {}
 Number of samples: {}
@@ -25,32 +25,33 @@ resp.find_cycles(include_holds=True)
 
 print(resp.segments)
 
-# visualize_slice = slice(0, 5120)
-#
-# plt.plot(resp.t[visualize_slice], resp.samples[visualize_slice], color='lightgrey')
-# plt.plot(resp.peaks[visualize_slice], resp.idt[resp.peaks[visualize_slice]],
-#          linestyle='none', marker='o')
-# plt.plot(resp.troughs[visualize_slice], resp.idt[resp.troughs[visualize_slice]],
-#          linestyle='none', marker='o')
-# plt.xlim(0, 5120 / resp.samp_freq)
+visualize_slice = slice(0, 5120)
+
+plt.plot(resp.t[visualize_slice], resp.samples[visualize_slice], color='lightgrey')
+plt.plot(resp.peaks[visualize_slice], resp.idt[resp.peaks[visualize_slice]],
+         linestyle='none', marker='o')
+plt.plot(resp.troughs[visualize_slice], resp.idt[resp.troughs[visualize_slice]],
+         linestyle='none', marker='o')
+plt.xlim(0, 5120 / resp.samp_freq)
+plt.show()
 
 inh_durs = [i.duration() for i in resp.inhalations]
 
 exh_durs = [i.duration() for i in resp.exhalations]
 
-# plt.hist(inh_durs, bins=20)
-# plt.xlabel("Duration (seconds)")
-# plt.ylabel("Count")
-# plt.title("Inhalation Distribution")
-# plt.show()
-#
-# plt.hist(exh_durs, bins=20)
-# plt.xlabel("Duration (seconds)")
-# plt.ylabel("Count")
-# plt.title("Exhalation Distribution")
-# plt.show()
+plt.hist(inh_durs, bins=20)
+plt.xlabel("Duration (seconds)")
+plt.ylabel("Count")
+plt.title("Inhalation Distribution")
+plt.show()
 
-window_size = 30    # minutes
+plt.hist(exh_durs, bins=20)
+plt.xlabel("Duration (seconds)")
+plt.ylabel("Count")
+plt.title("Exhalation Distribution")
+plt.show()
+
+window_size = 10    # minutes
 time_bins = np.arange(0, round_by(resp.dur, 60 * window_size), 60 * window_size)  # Bins for every 10 minutes
 avg_inh_durs = []
 avg_exh_durs = []

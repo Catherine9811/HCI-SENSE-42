@@ -4,18 +4,24 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import addcopyfighandler
 from collections import defaultdict
+
+from matplotlib.lines import Line2D
+
 from data_parser import DataParser
 
 
-def total_movements(x, y):
+def effective_movement_ratio(x, y):
     if len(x) < 2 or len(y) < 2:
         return 0  # Not enough points to calculate movement
+
+    # Compute straight-line distance (Euclidean distance between first and last point)
+    straight_line_distance = np.hypot(x[-1] - x[0], y[-1] - y[0])
 
     # Compute total trajectory distance (sum of Euclidean distances between consecutive points)
     total_distance = sum(np.hypot(np.diff(x), np.diff(y)))
 
     # Avoid division by zero
-    return total_distance
+    return straight_line_distance / total_distance if total_distance > 0 else 0
 
 
 file_path = r"../data/002_explorer_2025-02-28_14h43.29.510.psydat"
@@ -27,7 +33,6 @@ plt.figure(figsize=(6, 4))
 # Apply paper-style settings
 sns.set_theme(style="whitegrid", context="paper")
 
-
 # Get OS details
 stylizer = parser["operating_system_style"]
 style_mapping = {
@@ -36,8 +41,12 @@ style_mapping = {
 }
 
 for task_name, task_key in [
-    # ('Closing Window', 'window_close_mouse.started'),
-    ('Opening Folder', 'stimuli_reaction_mouse_movement.started'),
+    ('Close Window', 'window_close_mouse.started'),
+    # ('Open Files', 'file_manager_mouse_homescreen.started'),
+    # ('Open Trash', 'trash_bin_mouse_homescreen.started'),
+    # ('Open Notes', 'notes_mouse_homescreen.started'),
+    # ('Open Browser', 'browser_mouse_homescreen.started')
+
 ]:
     typing_task = parser[task_key]
 
@@ -56,8 +65,8 @@ for task_name, task_key in [
         key = candidates[-1]
         x = entry[key.replace(".time", ".x")]
         y = entry[key.replace(".time", ".y")]
-        y_values.append(total_movements(x, y) / entry[key][-1])
-    g_values = [entry[f"trials.thisN"] for entry in typing_task]
+        y_values.append(effective_movement_ratio(x, y))
+    g_values = [style_mapping[entry[f"trials.thisN"]] for entry in typing_task]
 
     # Group data
     grouped_x = defaultdict(list)
@@ -67,31 +76,23 @@ for task_name, task_key in [
         grouped_x[g].append(x)
         grouped_y[g].append(y)
 
-    # Compute mean and standard deviation
-    x_means = defaultdict(list)
-    x_errors = defaultdict(list)
-    y_means = defaultdict(list)
-    y_errors = defaultdict(list)
-    g_unique = sorted(grouped_x.keys())  # Unique sorted group values
+    means = {style: np.mean(y) for style, y in grouped_y.items()}
+    variances = {style: np.var(y) for style, y in grouped_y.items()}
 
-    for g in g_unique:
-        x_means[style_mapping[g]].append(np.mean(grouped_x[g]))
-        x_errors[style_mapping[g]].append(np.std(grouped_x[g]))
-        y_means[style_mapping[g]].append(np.mean(grouped_y[g]))
-        y_errors[style_mapping[g]].append(np.std(grouped_y[g]))
+    styles = list(means.keys())
+    mean_values = list(means.values())
+    variance_values = list(variances.values())
 
-    for style in x_means:
-        # Plot error bars
-        plt.errorbar(x_means[style], y_means[style], yerr=y_errors[style], fmt='o', capsize=5, label=style,
-                     # xerr=x_errors
-                     )
+    plt.barh(styles, mean_values, xerr=variance_values, alpha=1.0, label='Mean')
 
+    # for i, (mean, var) in enumerate(zip(mean_values, variance_values)):
+    #     plt.vlines(x=styles[i], ymin=mean - var, ymax=mean + var, colors='red',
+    #                label='Variance' if i == 0 else "")
 
 # Labels and title
-plt.xlabel("Time (seconds)")
-plt.ylabel("Moving Speed (unit/second)")
-plt.title("Mouse Moving Speed Over Time")
-plt.legend()
+plt.ylabel("Operating System")
+plt.xlabel("Effective Moving Percentage (%)")
+plt.title("Mouse Navigation Efficiency Over Operating System")
 
 # Show the plot
 plt.show()
