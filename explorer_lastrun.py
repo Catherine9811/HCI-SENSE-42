@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 This experiment was created using PsychoPy3 Experiment Builder (v2024.2.3),
-    on February 19, 2025, at 19:49
+    on March 11, 2025, at 19:44
 If you publish work using this script the most relevant publication is:
 
     Peirce J, Gray JR, Simpson S, MacAskill M, Höchenberger R, Sogo H, Kastman E, Lindeløv JK. (2019) 
@@ -540,7 +540,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
             self.thread = None
             self.latest_frame = None
             self.frame_size = (1280, 720)
-            self.frame_rate = 30
+            self.frame_rate = 50
             self.camRecFolder = thisExp.dataFileName + '_cam_recorded'
             if not os.path.isdir(self.camRecFolder):
                 os.mkdir(self.camRecFolder)
@@ -576,7 +576,6 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
             while not self.thread._should_stop.is_set() and self.cap.isOpened():
                 ret, frame = self.cap.read()
                 if not ret:
-                    time.sleep(1 / self.frame_rate * 0.1)
                     continue
                 self.out.write(frame)
                 # Update the latest frame
@@ -593,7 +592,6 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
                     metadata=None,
                     movieLib="opencv",
                     userData=None)
-                time.sleep(1 / self.frame_rate * 0.5)
     
             self.out.release()
             self.thread._is_finished = True  # Mark the thread as finished
@@ -1802,7 +1800,7 @@ def run(expInfo, thisExp, win, globalClock=None, thisSession=None):
         showed_alertness_prompt = 0
         interval_alertness_prompt = 5 * 60  # seconds
         showed_pause_prompt = 0
-        interval_pause_prompt = 60
+        interval_pause_prompt = 10 * 60
         pause_enabled = False
         duration_experiment = 2 * 60 * 60 + 5 * 60   # seconds
         keywords = ["MAIL", "FILE_DRAGGING", "FILE_OPENING", "TRASH_BIN", "NOTES"]
