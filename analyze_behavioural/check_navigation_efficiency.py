@@ -24,7 +24,7 @@ def effective_movement_ratio(x, y):
     return straight_line_distance / total_distance if total_distance > 0 else 0
 
 
-file_path = r"../data/002_explorer_2025-02-28_14h43.29.510.psydat"
+file_path = r"../data/005_explorer_2025-03-13_15h13.30.204.psydat"
 parser = DataParser(file_path)
 print(parser)
 

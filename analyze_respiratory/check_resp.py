@@ -1,6 +1,7 @@
 from analyze_respiratory.rip import Resp
 import datetime
 import numpy as np
+import addcopyfighandler
 import matplotlib.pyplot as plt
 
 
@@ -8,7 +9,7 @@ def round_by(seconds, units):
     return int(seconds/units) * units
 
 
-resp = Resp.from_wav(r"../data/Respiration/P002.wav")
+resp = Resp.from_wav(r"../data/Respiration/P006.wav")
 
 print('''Sampling frequency: {}
 Number of samples: {}

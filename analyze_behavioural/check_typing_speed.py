@@ -11,7 +11,7 @@ def count_effective_keys(keys):
     return len(keys) - 2 * keys.count('backspace')
 
 
-file_path = r"../data/002_explorer_2025-02-28_14h43.29.510.psydat"
+file_path = r"../data/006_explorer_2025-03-13_19h45.43.154.psydat"
 parser = DataParser(file_path)
 print(parser)
 

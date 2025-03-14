@@ -5,13 +5,17 @@ import addcopyfighandler
 from scipy.io import wavfile
 
 # Define the file path
-participant_id = "P002"
+participant_id = "P006"
 bdf_file = rf"../data/EEG/{participant_id}.bdf"
 
 channel = ['Resp']
 
 # Load the raw BDF file
 raw = mne.io.read_raw_bdf(bdf_file, preload=True)
+
+# Special for P005
+# raw_extra = mne.io.read_raw_bdf(rf"../data/EEG/{participant_id} 02.bdf", preload=True)
+# raw = mne.concatenate_raws([raw, raw_extra])
 
 print(raw.info['ch_names'])
 

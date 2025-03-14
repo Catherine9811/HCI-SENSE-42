@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import addcopyfighandler
 
 # Define the file path
-participant_id = "P002"
+participant_id = "P006"
 fif_file = rf"../data/ECG/{participant_id}.fif"
 
 raw_ecg = mne.io.read_raw_fif(fif_file, preload=True)

@@ -2,7 +2,7 @@ import mne
 import matplotlib.pyplot as plt
 
 # Define the file path
-bdf_file = r"../data/EEG/P001.bdf"
+bdf_file = r"../data/EEG/P005 02.bdf"
 
 # Load the raw BDF file
 raw = mne.io.read_raw_bdf(bdf_file, preload=True)
