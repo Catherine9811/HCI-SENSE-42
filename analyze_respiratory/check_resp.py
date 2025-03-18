@@ -9,7 +9,7 @@ def round_by(seconds, units):
     return int(seconds/units) * units
 
 
-resp = Resp.from_wav(r"../data/Respiration/P006.wav")
+resp = Resp.from_wav(r"../data/Respiration/P007.wav")
 
 print('''Sampling frequency: {}
 Number of samples: {}

@@ -6,7 +6,7 @@ import addcopyfighandler
 from data_parser import DataParser
 
 
-file_path = r"../data/006_explorer_2025-03-13_19h45.43.154.psydat"
+file_path = r"../data/007_explorer_2025-03-14_14h12.43.192.psydat"
 parser = DataParser(file_path)
 print(parser)
 

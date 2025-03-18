@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Define the file path
-participant_id = "P006"
+participant_id = "P009"
 bdf_file = rf"../data/EEG/{participant_id}.bdf"
 fif_file = rf"../data/ECG/{participant_id}.fif"
 

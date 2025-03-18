@@ -29,7 +29,7 @@ import scipy.sparse
 import scipy.sparse.linalg
 from scipy.interpolate import UnivariateSpline
 
-from peakdetect import peakdetect
+from analyze_respiratory.peakdetect import peakdetect
 import tgt
 
 # Make sure Pandas uses the bottleneck and numexpr libraries

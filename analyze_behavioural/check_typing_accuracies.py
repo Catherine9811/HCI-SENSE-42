@@ -34,7 +34,7 @@ def get_final_text(keys, rt, duration, ignore_deletion=False):
 
     return text
 
-file_path = r"../data/002_explorer_2025-02-28_14h43.29.510.psydat"
+file_path = r"../data/001_explorer_2025-02-15_15h23.13.921.psydat"
 parser = DataParser(file_path)
 print(parser)
 
@@ -50,12 +50,12 @@ for task_name, task_key, task_prefix, task_keyboard in [
     typing_task = parser[task_key]
     # Extracting values for plotting
     x_values = [entry[f"{task_key}.started"] for entry in typing_task]
-    y_values = []
-    for entry in typing_task:
-        text = get_final_text(entry[f"{task_keyboard}.keys"], entry[f"{task_keyboard}.rt"], entry[f"{task_keyboard}.duration"], ignore_deletion=True)
-        y_values.append(jellyfish.jaro_similarity(entry[f"{task_prefix}_repeat_source"], text))
+    # y_values = []
+    # for entry in typing_task:
+    #     text = get_final_text(entry[f"{task_keyboard}.keys"], entry[f"{task_keyboard}.rt"], entry[f"{task_keyboard}.duration"], ignore_deletion=True)
+    #     y_values.append(jellyfish.jaro_similarity(entry[f"{task_prefix}_repeat_source"], text))
     # Enable when the data collection is fixed
-    # y_values = [jellyfish.jaro_similarity(entry[f"{task_prefix}_repeat_source"], entry[f"{task_prefix}_repeat_target"]) for entry in typing_task]
+    y_values = [jellyfish.jaro_similarity(entry[f"{task_prefix}_repeat_source"], entry[f"{task_prefix}_repeat_target"]) for entry in typing_task]
 
     plt.plot(x_values, y_values, marker='o', linestyle='-', label=task_name)
 
