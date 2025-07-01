@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Define the file path
-participant_id = "P009"
+participant_id = "P042"
 bdf_file = rf"../data/EEG/{participant_id}.bdf"
 fif_file = rf"../data/ECG/{participant_id}.fif"
 
@@ -71,7 +71,7 @@ raw_ecg.save(fif_file, overwrite=True)
 
 # Detect ECG events (R-waves) in lead II using find_ecg_events
 # Note: find_ecg_events returns three values; here we only need the first one which contains event positions.
-ecg_events, ch_ecg, average_pulse = mne.preprocessing.find_ecg_events(raw_ecg, ch_name='ECG2')
+ecg_events, ch_ecg, average_pulse = mne.preprocessing.find_ecg_events(raw_ecg, ch_name='ECG2', tstart=60.0)
 
 # Plot the derived 3-lead ECG signals
 raw_ecg.plot(title='Derived 3-lead ECG signals', events=ecg_events, duration=10, n_channels=3)

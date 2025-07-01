@@ -2,7 +2,9 @@ import mne
 import matplotlib.pyplot as plt
 
 # Define the file path
-bdf_file = r"../data/EEG/P005 02.bdf"
+bdf_file = r"../data/EEG/P038.bdf"
+# bdf_file = r"../data/EEG/P005 02.bdf"
+# bdf_file = r"C:\Users\MartinBai白心宇\Documents\WeChat Files\wxid_b3muybr2t9n142\FileStorage\File\2025-06\output_021_block3.bdf"
 
 # Load the raw BDF file
 raw = mne.io.read_raw_bdf(bdf_file, preload=True)
@@ -14,6 +16,12 @@ events = mne.find_events(raw, stim_channel='Status', initial_event=True, shortes
 
 # Create event_id mapping
 event_id = {str(event): event for event in set(events[:, 2]) if event < 255}
+# event_id = {str(event): event for event in set(events[:, 2])}
+
+print(event_id)
+
+temp_data, times = raw.copy().pick_channels(['Temp']).get_data(return_times=True)
+
 
 # Plot the raw EEG data with events
 raw.plot(events=events, scalings='auto', title='EEG Time Series with Events')

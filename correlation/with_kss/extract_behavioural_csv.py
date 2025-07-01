@@ -2,6 +2,7 @@ import numpy as np
 import pickle
 import os
 import pandas as pd
+import jellyfish
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import seaborn as sns
@@ -434,6 +435,50 @@ class KeyboardTypingSpeedExtractor:
         return x_values, y_values
 
 
+class KeyboardShadowTypingEfficiencyExtractor:
+    name = "keyboard_shadow_typing_efficiency"
+
+    def process(self, parser):
+        task_key = 'mail_content'
+        task_keyboard = 'mail.mail_content_user_key_release'
+        task_prefix = 'single_note'
+        typing_task = parser[task_key]
+        # Extracting values for plotting
+        x_values = [entry[f"{task_key}.started"] for entry in typing_task]
+        y_values = []
+        for entry in typing_task:
+            typing_speed = KeyboardTypingSpeedExtractor.count_effective_keys(entry[f"{task_keyboard}.keys"]) / (
+                            entry[f"{task_key}.stopped"] - entry[f"{task_key}.started"])
+            typing_error = jellyfish.jaro_similarity(entry[f"{task_prefix}_repeat_source"],
+                                                     entry[f"{task_prefix}_repeat_target"])
+            y_values.append(
+                typing_speed * typing_error
+            )
+        return x_values, y_values
+
+
+class KeyboardSideBySideTypingEfficiencyExtractor:
+    name = "keyboard_side_by_side_typing_efficiency"
+
+    def process(self, parser):
+        task_key = 'notes_repeat'
+        task_keyboard = 'notes.notes_repeat_keyboard'
+        task_prefix = 'notes'
+        typing_task = parser[task_key]
+        # Extracting values for plotting
+        x_values = [entry[f"{task_key}.started"] for entry in typing_task]
+        y_values = []
+        for entry in typing_task:
+            typing_speed = KeyboardTypingSpeedExtractor.count_effective_keys(entry[f"{task_keyboard}.keys"]) / (
+                            entry[f"{task_key}.stopped"] - entry[f"{task_key}.started"])
+            typing_error = jellyfish.jaro_similarity(entry[f"{task_prefix}_repeat_source"],
+                                                     entry[f"{task_prefix}_repeat_target"])
+            y_values.append(
+                typing_speed * typing_error
+            )
+        return x_values, y_values
+
+
 class KeyboardSpaceKeyTypingDurationExtractor:
     name = "keyboard_space_key_typing_duration"
 
@@ -528,6 +573,8 @@ if __name__ == '__main__':
         KeyboardSpaceKeyPressedDurationExtractor(),
         KeyboardSpaceKeyTypingDurationExtractor(),
         KeyboardPressedDurationExtractor(),
+        KeyboardShadowTypingEfficiencyExtractor(),
+        KeyboardSideBySideTypingEfficiencyExtractor()
     ]
 
     outcome_definition = TemporalDemandAnswerExtractor()

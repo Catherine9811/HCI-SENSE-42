@@ -4,16 +4,17 @@ import matplotlib.pyplot as plt
 import addcopyfighandler
 
 # Define the file path
-participant_id = "P007"
+participant_id = "P013"
 fif_file = rf"../data/ECG/{participant_id}.fif"
 
 raw_ecg = mne.io.read_raw_fif(fif_file, preload=True)
 # Detect ECG events (R-waves) in lead II using find_ecg_events
 # Note: find_ecg_events returns three values; here we only need the first one which contains event positions.
-ecg_events, ch_ecg, average_pulse = mne.preprocessing.find_ecg_events(raw_ecg, ch_name='ECG2')
+ecg_events, ch_ecg, average_pulse = mne.preprocessing.find_ecg_events(raw_ecg, ch_name='ECG2', tstart=120.0)
 
 # Plot the derived 3-lead ECG signals
-# raw_ecg.plot(title='Derived 3-lead ECG signals', events=ecg_events, duration=10, n_channels=3)
+raw_ecg.plot(title='Derived 3-lead ECG signals', events=ecg_events, duration=10, n_channels=3)
+plt.show()
 
 # Compute event times in seconds
 sfreq = raw_ecg.info['sfreq']

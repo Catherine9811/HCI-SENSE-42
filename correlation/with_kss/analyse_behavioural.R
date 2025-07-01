@@ -7,9 +7,9 @@ library(sjPlot)
 outcome_variable <- "temporal_demand"
 
 # Read the data from the CSV file
-data <- read.csv(paste("processed_data/behavioural/9-", outcome_variable, ".csv", sep=""), sep=",")
+data <- read.csv(paste("processed_data/behavioural/32-", outcome_variable, ".csv", sep=""), sep=",")
 
-output_file <- paste("processed_data/behavioural/9-", outcome_variable, "-output.csv", sep="")
+output_file <- paste("processed_data/behavioural/32-", outcome_variable, "-output.csv", sep="")
 
 # Define the predictors
 predictors <- c(
