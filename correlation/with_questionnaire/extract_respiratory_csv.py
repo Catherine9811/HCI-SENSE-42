@@ -10,7 +10,7 @@ from collections import defaultdict
 from analyze_respiratory.rip import Resp
 import datetime
 from data_parser import DataParser
-from correlation.with_kss.extract_behavioural_csv import \
+from correlation.with_questionnaire.extract_behavioural_csv import \
     SleepinessAnswerExtractor, AttentivenessAnswerExtractor, PerformanceAnswerExtractor, TemporalDemandAnswerExtractor
 from data_definition import psydat_files
 

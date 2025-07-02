@@ -4,12 +4,12 @@ library(lattice)
 library(ggplot2)
 library(sjPlot)
 
-outcome_variable <- "temporal_demand"
+outcome_variable <- "performance"
 
 # Read the data from the CSV file
-data <- read.csv(paste("processed_data/behavioural/32-", outcome_variable, ".csv", sep=""), sep=",")
+data <- read.csv(paste("processed_data/behavioural/42-", outcome_variable, ".csv", sep=""), sep=",")
 
-output_file <- paste("processed_data/behavioural/32-", outcome_variable, "-output.csv", sep="")
+output_file <- paste("processed_data/behavioural/42-", outcome_variable, "-output.csv", sep="")
 
 # Define the predictors
 predictors <- c(
@@ -35,6 +35,8 @@ predictors <- c(
   "keyboard_space_key_pressed_duration_mean", "keyboard_space_key_pressed_duration_var", 
   "keyboard_space_key_typing_duration_mean", "keyboard_space_key_typing_duration_var", 
   "keyboard_pressed_duration_mean", "keyboard_pressed_duration_var", 
+  "keyboard_shadow_typing_efficiency_mean", "keyboard_shadow_typing_efficiency_var",
+  "keyboard_side_by_side_typing_efficiency_mean", "keyboard_side_by_side_typing_efficiency_var",
   "time"
 )
 
