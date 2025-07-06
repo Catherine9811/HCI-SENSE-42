@@ -28,7 +28,7 @@ os_summary <- data %>%
   distinct(participant, os) %>%
   count(os) %>%
   mutate(percentage = n / sum(n) * 100,
-         label = recode(os, !!!os_labels))
+         label = dplyr::recode(os, !!!os_labels))
 
 # Step 2: Create a pie chart using ggplot2
 ggplot(os_summary, aes(x = "", y = percentage, fill = label)) +
@@ -60,7 +60,7 @@ for (var_name in variable_names) {
   subset_data <- data %>% filter(name == var_name)
   
   # Ensure participant and os are treated as factors
-  subset_data$participant <- as.factor(subset_data$participant)
+  # subset_data$participant <- as.factor(subset_data$participant)
   subset_data$os <- as.factor(subset_data$os)
   
   participant_os_counts <- subset_data %>%
@@ -71,6 +71,12 @@ for (var_name in variable_names) {
   subset_data <- subset_data %>%
     filter(participant %in% participant_os_counts$participant)
   
+  subset_data <- subset_data %>%
+    group_by(participant, os) %>%
+    summarise(value = mean(value, na.rm = TRUE), .groups = "drop")
+  
+  subset_data$participant <- as.factor(subset_data$participant)
+  
   if (nrow(subset_data) > 0 && length(unique(subset_data$os)) > 1) {
     # ezANOVA requires one row per condition per participant
     anova_result <- tryCatch({
@@ -78,11 +84,11 @@ for (var_name in variable_names) {
         data = subset_data,
         dv = value,
         wid = participant,
-        within = os,
+        within = .(os),
         return_aov = TRUE,
         type = 3
       )
-      
+      # Mauchly's sphericity test holds true for os with 2 levels
       ez_main <- ez_result$ANOVA[1, ]
       
       summary_data <- subset_data %>%

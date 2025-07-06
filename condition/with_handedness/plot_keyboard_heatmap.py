@@ -81,6 +81,7 @@ class KeyboardTypingDurationExtractor:
     name = "keyboard_typing_duration"
     readable_name = "Reaction Time for Keyboard Keys (s)"
     reduce_mode = "median"
+    group_by = "handedness"
     max_clipping = 40
 
     def process(self, parser):
@@ -108,6 +109,7 @@ class KeyboardPressedDurationExtractor:
     readable_name = "Pressed Duration of Keyboard Keys (s)"
     reduce_mode = "median"
     max_clipping = 5
+    group_by = "handedness"
     color_max_clipping = 0.2
 
     def process(self, parser):
@@ -254,106 +256,131 @@ def plot_keyboard_heatmap(df, variable_definitions, save_path="figures"):
         # Filter out extreme values
         var_df = var_df[var_df["value"] <= variable.max_clipping]
         var_df = var_df[var_df["value"] >= 0]
-        if reduce_mode == "average":
-            agg = var_df.groupby("key")["value"].mean()
-        elif reduce_mode == "sum":
-            agg = var_df.groupby("key")["value"].sum()
-            agg = np.log(agg + 1e-6)
-        elif reduce_mode == "median":
-            agg = var_df.groupby("key")["value"].median()
+
+        if hasattr(variable, "group_by"):
+            group_column = variable.group_by
+            group_values = sorted(var_df[group_column].unique())  # <-- sorted here
+
+            fig, axes = plt.subplots(len(group_values), 1, figsize=(18, 6 * len(group_values)))
+
+            if len(group_values) == 1:
+                axes = [axes]
+
+            for ax, group_value in zip(axes, group_values):
+                group_df = var_df[var_df[group_column] == group_value]
+                title = f"{readable} ({group_value})"
+                plot_keyboard_heatmap_core(
+                    ax=ax,
+                    variable=variable,
+                    name=name,
+                    readable=title,
+                    reduce_mode=reduce_mode,
+                    var_df=group_df
+                )
         else:
-            raise ValueError(f"Unknown reduce_mode: {reduce_mode}")
-
-        if hasattr(variable, "color_max_clipping"):
-            agg = agg.clip(upper=variable.color_max_clipping)
-
-        # Normalize
-        agg.index = agg.index.str.lower().str.strip()
-        agg_normalized = normalize(agg)
-
-        fig, ax = plt.subplots(figsize=(18, 6))
-        ax.axis("off")
-        ax.set_title(readable, fontsize=18, pad=20)
-
-        safe_margin = 0.05
-        total_width = 17
-        vertical_padding = 0.02
-        height = 1 / 8
-        y_offset = 0
-        has_enter = False
-
-        ax.set_xlim(0 - safe_margin, total_width + safe_margin)
-        ax.set_ylim(0 - (len(keyboard_layout) - 1) * (height + vertical_padding) - safe_margin, height + safe_margin)
-        for row in keyboard_layout:
-            actual_width = sum([key[2] if len(key) == 3 else 1 for key in row])
-            padding = (total_width - actual_width) / (len(row) - 1)
-            x_offset = 0
-            for key in row:
-                # Extract key info
-                if len(key) == 3:
-                    key_label, shift_label, width = key
-                else:
-                    key_label, shift_label = key
-                    width = 1
-
-                key_lower = key_label.strip().lower()
-                heat_val = agg.get(keyboard_mapping.get(key_lower, key_lower), np.nan)
-                norm_val = agg_normalized.get(keyboard_mapping.get(key_lower, key_lower), np.nan)
-
-                # Determine color
-                color = plt.cm.copper_r(norm_val) if not pd.isna(norm_val) else "lightgrey"
-
-                if key_label == "Enter":
-                    if has_enter:
-                        continue
-                    draw_enter_key(ax, x_offset, -y_offset + height, width, 1, height, vertical_padding, color)
-                    has_enter = True
-                else:
-                    # Draw rounded key
-                    rect = FancyBboxPatch(
-                        (x_offset, -y_offset),
-                        width,
-                        height,
-                        boxstyle="square,pad=0.0",
-                        linewidth=0.6,
-                        facecolor=color,
-                        edgecolor="black"
-                    )
-                    ax.add_patch(rect)
-
-                    # Label rendering
-                    if shift_label and shift_label != key_label.upper():
-                        label_text = f"{shift_label}\n{key_label}"
-                        fontsize = 12
-                    else:
-                        label_text = key_label.upper()
-                        fontsize = 12
-
-                    ax.text(
-                        x_offset + width / 2,
-                        -y_offset + height / 2,
-                        label_text,
-                        ha="center",
-                        va="center",
-                        fontsize=fontsize,
-                        color="white" if not pd.isna(norm_val) else "black",
-                        weight="medium",
-                        fontname="Arial",
-                        linespacing=2,
-                    )
-
-                x_offset += width + padding
-            y_offset += height + vertical_padding
-
-        # Colorbar
-        sm = plt.cm.ScalarMappable(cmap='copper_r', norm=plt.Normalize(vmin=agg.min(), vmax=agg.max()))
-        sm.set_array([])
-        cbar = plt.colorbar(sm, ax=ax, orientation='vertical', fraction=0.025, pad=0.02)
-        cbar.set_label(readable, fontsize=12)
-
+            fig, ax = plt.subplots(figsize=(18, 6))
+            plot_keyboard_heatmap_core(ax, variable, name, readable, reduce_mode, var_df)
         plt.tight_layout()
         plt.savefig(os.path.join(save_path, f"{name}_keyboard_heatmap.png"), dpi=300)
         plt.close()
+
+
+def plot_keyboard_heatmap_core(ax, variable, name, readable, reduce_mode, var_df):
+    if reduce_mode == "average":
+        agg = var_df.groupby("key")["value"].mean()
+    elif reduce_mode == "sum":
+        agg = var_df.groupby("key")["value"].sum()
+        agg = np.log(agg + 1e-6)
+    elif reduce_mode == "median":
+        agg = var_df.groupby("key")["value"].median()
+    else:
+        raise ValueError(f"Unknown reduce_mode: {reduce_mode}")
+
+    if hasattr(variable, "color_max_clipping"):
+        agg = agg.clip(upper=variable.color_max_clipping)
+
+    # Normalize
+    agg.index = agg.index.str.lower().str.strip()
+    agg_normalized = normalize(agg)
+
+    ax.axis("off")
+    ax.set_title(readable, fontsize=18, pad=20)
+
+    safe_margin = 0.05
+    total_width = 17
+    vertical_padding = 0.02
+    height = 1 / 8
+    y_offset = 0
+    has_enter = False
+
+    ax.set_xlim(0 - safe_margin, total_width + safe_margin)
+    ax.set_ylim(0 - (len(keyboard_layout) - 1) * (height + vertical_padding) - safe_margin, height + safe_margin)
+    for row in keyboard_layout:
+        actual_width = sum([key[2] if len(key) == 3 else 1 for key in row])
+        padding = (total_width - actual_width) / (len(row) - 1)
+        x_offset = 0
+        for key in row:
+            # Extract key info
+            if len(key) == 3:
+                key_label, shift_label, width = key
+            else:
+                key_label, shift_label = key
+                width = 1
+
+            key_lower = key_label.strip().lower()
+            heat_val = agg.get(keyboard_mapping.get(key_lower, key_lower), np.nan)
+            norm_val = agg_normalized.get(keyboard_mapping.get(key_lower, key_lower), np.nan)
+
+            # Determine color
+            color = plt.cm.copper_r(norm_val) if not pd.isna(norm_val) else "lightgrey"
+
+            if key_label == "Enter":
+                if has_enter:
+                    continue
+                draw_enter_key(ax, x_offset, -y_offset + height, width, 1, height, vertical_padding, color)
+                has_enter = True
+            else:
+                # Draw rounded key
+                rect = FancyBboxPatch(
+                    (x_offset, -y_offset),
+                    width,
+                    height,
+                    boxstyle="square,pad=0.0",
+                    linewidth=0.6,
+                    facecolor=color,
+                    edgecolor="black"
+                )
+                ax.add_patch(rect)
+
+                # Label rendering
+                if shift_label and shift_label != key_label.upper():
+                    label_text = f"{shift_label}\n{key_label}"
+                    fontsize = 12
+                else:
+                    label_text = key_label.upper()
+                    fontsize = 12
+
+                ax.text(
+                    x_offset + width / 2,
+                    -y_offset + height / 2,
+                    label_text,
+                    ha="center",
+                    va="center",
+                    fontsize=fontsize,
+                    color="white" if not pd.isna(norm_val) else "black",
+                    weight="medium",
+                    fontname="Arial",
+                    linespacing=2,
+                )
+
+            x_offset += width + padding
+        y_offset += height + vertical_padding
+
+    # Colorbar
+    sm = plt.cm.ScalarMappable(cmap='copper_r', norm=plt.Normalize(vmin=agg.min(), vmax=agg.max()))
+    sm.set_array([])
+    cbar = plt.colorbar(sm, ax=ax, orientation='vertical', fraction=0.025, pad=0.02)
+    cbar.set_label(readable, fontsize=12)
 
 
 if __name__ == '__main__':

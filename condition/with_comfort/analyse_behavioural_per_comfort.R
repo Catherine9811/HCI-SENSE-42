@@ -2,6 +2,7 @@ library(dplyr)
 library(tidyr)
 library(ggplot2)
 library(ez)
+library(car)
 library(readr)
 
 # Input/output setup
@@ -20,6 +21,7 @@ results <- data.frame(
   Df_num = numeric(),
   Df_den = numeric(),
   P_value = numeric(),
+  P_levene_value = numeric(),
   stringsAsFactors = FALSE
 )
 
@@ -38,6 +40,11 @@ for (var_name in variable_names) {
     summarise(value = mean(value), .groups = "drop")
   
   if (nrow(aggregated) > 0) {
+    levene_result <- leveneTest(value ~ comfort, data = aggregated)
+    levene_p <- levene_result$`Pr(>F)`[1]
+    cat("Variable:", var_name, "\n")
+    cat("Levene's Test p-value:", levene_p, "\n")
+    
     # Run ANOVA
     anova_result <- tryCatch({
       model <- aov(value ~ comfort, data = aggregated)
@@ -90,6 +97,7 @@ for (var_name in variable_names) {
         Df_num = Df_num,
         Df_den = Df_den,
         P_value = P_val,
+        P_levene_value = levene_p,
         Significant_Pairs = pairwise_text
       ), summary_data)
       
