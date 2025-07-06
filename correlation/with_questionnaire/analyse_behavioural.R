@@ -4,7 +4,7 @@ library(lattice)
 library(ggplot2)
 library(sjPlot)
 
-outcome_variable <- "performance"
+outcome_variable <- "sleepiness"
 
 # Read the data from the CSV file
 data <- read.csv(paste("processed_data/behavioural/42-", outcome_variable, ".csv", sep=""), sep=",")
@@ -37,6 +37,10 @@ predictors <- c(
   "keyboard_pressed_duration_mean", "keyboard_pressed_duration_var", 
   "keyboard_shadow_typing_efficiency_mean", "keyboard_shadow_typing_efficiency_var",
   "keyboard_side_by_side_typing_efficiency_mean", "keyboard_side_by_side_typing_efficiency_var",
+  "mouse_open_file_manager_duration_mean", "mouse_open_file_manager_duration_var",
+  "mouse_open_trash_bin_duration_mean", "mouse_open_trash_bin_duration_var",
+  "mouse_open_notes_duration_mean", "mouse_open_notes_duration_var",
+  "mouse_open_browser_duration_mean", "mouse_open_browser_duration_var",
   "time"
 )
 

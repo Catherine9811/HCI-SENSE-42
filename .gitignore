@@ -2,6 +2,7 @@ data
 processed_data/
 processed_data_all_times/
 resources
+figures/
 .idea/
 .Rhistory
 

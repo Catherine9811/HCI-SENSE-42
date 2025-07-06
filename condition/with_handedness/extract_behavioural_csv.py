@@ -1,6 +1,7 @@
 import numpy as np
 import pickle
 import os
+import functools
 import pandas as pd
 import jellyfish
 import matplotlib.pyplot as plt
@@ -15,8 +16,6 @@ from data_definition import psydat_files
 SCREEN_WIDTH = 1920
 SCREEN_HEIGHT = 1080
 SCREEN_ASPECT_RATIO = 1920 / 1080
-
-SMOOTH_WINDOW = 5 * 60
 
 
 def filter_time_series(times, values):
@@ -56,58 +55,52 @@ def scale_width_measurement_to_screen_height(width):
     return width * SCREEN_ASPECT_RATIO
 
 
-class PerformanceAnswerExtractor:
-    name = "performance"
+class HandednessExtractor:
+    name = "handedness"
 
-    def process(self, parser):
-        questionnaires = parser['browser_content']
-        question_name = "performance:_how_successful_were_you_in_accomplishing_what_you_were_asked_to_do_slider"
-        x_values = [entry["browser_content.started"] + entry[f"{question_name}.rt"] for entry in questionnaires]
-        y_values = [entry[f"{question_name}.rating"] for entry in questionnaires]
-        return x_values, y_values
+    def __init__(self, csv_path):
+        self.enrollment = pd.read_csv(csv_path)
+        self.id_column = "Participant ID"
+        self.uh_column = "Handedness"
+        # Extract the relevant columns
+        data = self.enrollment[[self.id_column, self.uh_column]].dropna()
 
+        # Create a dictionary: {participant_id (int): str}
+        self.uh_dict = {
+            int(row[self.id_column]): str(row[self.uh_column])
+            for _, row in data.iterrows()
+        }
 
-class TemporalDemandAnswerExtractor:
-    name = "temporal_demand"
-
-    def process(self, parser):
-        questionnaires = parser['browser_content']
-        question_name = "temporal_demand:_how_hurried_or_rushed_was_the_pace_of_the_task_slider"
-        x_values = [entry["browser_content.started"] + entry[f"{question_name}.rt"] for entry in questionnaires]
-        y_values = [entry[f"{question_name}.rating"] for entry in questionnaires]
-        return x_values, y_values
+    def process(self, participant_id: int):
+        return self.uh_dict.get(participant_id, "")
 
 
-class AttentivenessAnswerExtractor:
-    name = "attentiveness"
+class UsingOperatingSystemMode:
+    def get_entry_condition(self, parser, item):
+        stylizer = parser["operating_system_style"]
+        style_mapping = {
+            entry["trials.thisN"]: entry["operating_system_style"]
+            for entry in stylizer if 'trials.thisN' in entry
+        }
+        return style_mapping[item[f"trials.thisN"]]
 
-    def process(self, parser):
-        questionnaires = parser['browser_content']
-        question_name = "attentiveness:_how_focused_were_you_on_performing_the_task_slider"
-        x_values = [entry["browser_content.started"] + entry[f"{question_name}.rt"] for entry in questionnaires]
-        y_values = [entry[f"{question_name}.rating"] for entry in questionnaires]
-        return x_values, y_values
-
-
-class SleepinessAnswerExtractor:
-    name = "sleepiness"
-
-    def process(self, parser):
-        questionnaires = parser['browser_content']
-        question_name = "sleepiness:_how_sleepy_are_you_slider"
-        x_values = [entry["browser_content.started"] + entry[f"{question_name}.rt"] for entry in questionnaires]
-        y_values = [entry[f"{question_name}.rating"] for entry in questionnaires]
-        return x_values, y_values
+    def get_condition(self, parser, task):
+        stylizer = parser["operating_system_style"]
+        style_mapping = {
+            entry["trials.thisN"]: entry["operating_system_style"]
+            for entry in stylizer if 'trials.thisN' in entry
+        }
+        return [style_mapping[entry[f"trials.thisN"]] for entry in task]
 
 
-class MouseDoubleClickDistanceExtractor:
+class MouseDoubleClickDistanceExtractor(UsingOperatingSystemMode):
     name = "mouse_double_click_distance"
 
     def process(self, parser):
         task_key = 'stimuli_reaction_mouse_movement.started'
         task = parser[task_key]
         # Extracting values for plotting
-        x_values = [entry[task_key] for entry in task]
+        x_values = self.get_condition(parser, task)
         y_values = []
         for entry in task:
             target_location = entry["stimuli_reaction_stimuli_location"]
@@ -121,26 +114,26 @@ class MouseDoubleClickDistanceExtractor:
         return x_values, y_values
 
 
-class MouseDragDistanceExtractor:
+class MouseDragDistanceExtractor(UsingOperatingSystemMode):
     name = "mouse_drag_distance"
 
     def process(self, parser):
         task_key = 'stimuli_dragging_mouse.started'
         task = parser[task_key]
         # Extracting values for plotting
-        x_values = [entry[task_key] for entry in task]
+        x_values = self.get_condition(parser, task)
         y_values = [np.linalg.norm(scale_mouse_measurement_to_screen_height(entry["last_clicked_offset"])) for entry in task]
         return x_values, y_values
 
 
-class MouseDropDistanceExtractor:
+class MouseDropDistanceExtractor(UsingOperatingSystemMode):
     name = "mouse_drop_distance"
 
     def process(self, parser):
         task_key = 'stimuli_dragging_mouse.started'
         task = parser[task_key]
         # Extracting values for plotting
-        x_values = [entry[task_key] for entry in task]
+        x_values = self.get_condition(parser, task)
         y_values = []
         for entry in task:
             last_mouse_pos = np.array(
@@ -151,7 +144,7 @@ class MouseDropDistanceExtractor:
         return x_values, y_values
 
 
-class MouseTaskbarNavigationEfficiencyExtractor:
+class MouseTaskbarNavigationEfficiencyExtractor(UsingOperatingSystemMode):
     name = "mouse_taskbar_navigation_efficiency"
 
     @staticmethod
@@ -179,7 +172,7 @@ class MouseTaskbarNavigationEfficiencyExtractor:
         ]:
             typing_task = parser[task_key]
             # Extracting values for plotting
-            x_values.extend([entry[f"{task_key}"] for entry in typing_task])
+            x_values.extend(self.get_condition(parser, typing_task))
 
             for entry in typing_task:
                 # Get right keys for entry
@@ -193,7 +186,7 @@ class MouseTaskbarNavigationEfficiencyExtractor:
         return x_values, y_values
 
 
-class MouseToolbarNavigationEfficiencyExtractor:
+class MouseToolbarNavigationEfficiencyExtractor(UsingOperatingSystemMode):
     name = "mouse_toolbar_navigation_efficiency"
 
     @staticmethod
@@ -217,8 +210,10 @@ class MouseToolbarNavigationEfficiencyExtractor:
             'window_close_mouse.started'
         ]:
             typing_task = parser[task_key]
+            typing_task = [entry for entry in typing_task if entry['window_close_target_name'] == 'Close']
+
             # Extracting values for plotting
-            x_values.extend([entry[f"{task_key}"] for entry in typing_task])
+            x_values.extend(self.get_condition(parser, typing_task))
 
             for entry in typing_task:
                 # Get right keys for entry
@@ -232,7 +227,7 @@ class MouseToolbarNavigationEfficiencyExtractor:
         return x_values, y_values
 
 
-class MouseSelectionCoverageExtractor:
+class MouseSelectionCoverageExtractor(UsingOperatingSystemMode):
     name = "mouse_selection_coverage"
 
     def process(self, parser):
@@ -240,7 +235,7 @@ class MouseSelectionCoverageExtractor:
         task = parser[task_key]
 
         # Extracting values for plotting
-        x_values = [entry[task_key] for entry in task]
+        x_values = self.get_condition(parser, task)
         y_values = []
         for entry in task:
             # Collect location of all folders
@@ -260,7 +255,7 @@ class MouseSelectionCoverageExtractor:
         return x_values, y_values
 
 
-class MouseFolderNavigationSpeedExtractor:
+class MouseFolderNavigationSpeedExtractor(UsingOperatingSystemMode):
     name = "mouse_folder_navigation_speed"
     
     @staticmethod
@@ -278,7 +273,7 @@ class MouseFolderNavigationSpeedExtractor:
         task_key = 'stimuli_reaction_mouse_movement.started'
         typing_task = parser[task_key]
         # Extracting values for plotting
-        x_values = [entry[f"{task_key}"] for entry in typing_task]
+        x_values = self.get_condition(parser, typing_task)
 
         y_values = []
 
@@ -294,7 +289,7 @@ class MouseFolderNavigationSpeedExtractor:
         return x_values, y_values
 
 
-class MouseToolbarNavigationSpeedExtractor:
+class MouseToolbarNavigationSpeedExtractor(UsingOperatingSystemMode):
     name = "mouse_toolbar_navigation_speed"
 
     @staticmethod
@@ -311,8 +306,10 @@ class MouseToolbarNavigationSpeedExtractor:
     def process(self, parser):
         task_key = 'window_close_mouse.started'
         typing_task = parser[task_key]
+        typing_task = [entry for entry in typing_task if entry['window_close_target_name'] == 'Close']
+
         # Extracting values for plotting
-        x_values = [entry[f"{task_key}"] for entry in typing_task]
+        x_values = self.get_condition(parser, typing_task)
 
         y_values = []
 
@@ -328,7 +325,7 @@ class MouseToolbarNavigationSpeedExtractor:
         return x_values, y_values
 
 
-class TaskCompletionDurationBase:
+class TaskCompletionDurationBase(UsingOperatingSystemMode):
     name = "task_completion_duration_base"
     task_key = None
 
@@ -336,39 +333,9 @@ class TaskCompletionDurationBase:
         typing_task = parser[self.task_key]
 
         # Extracting values for plotting
-        x_values = [entry[f"{self.task_key}.started"] for entry in typing_task]
+        x_values = self.get_condition(parser, typing_task)
         y_values = [entry[f"{self.task_key}.stopped"] - entry[f"{self.task_key}.started"] for entry in typing_task]
         return x_values, y_values
-
-
-class MouseConfirmDialogDurationExtractor(TaskCompletionDurationBase):
-    name = "mouse_confirm_dialog_duration"
-    task_key = 'trash_bin_confirm'
-
-
-class MouseNotificationDurationExtractor(TaskCompletionDurationBase):
-    name = "mouse_notification_duration"
-    task_key = 'mail_notification'
-
-
-class MouseOpenFolderDurationExtractor(TaskCompletionDurationBase):
-    name = "mouse_open_folder_duration"
-    task_key = 'file_manager_opening'
-
-
-class MouseDragFolderDurationExtractor(TaskCompletionDurationBase):
-    name = "mouse_drag_folder_duration"
-    task_key = 'file_manager_dragging'
-
-
-class MouseCloseWindowDurationExtractor(TaskCompletionDurationBase):
-    name = "mouse_close_window_duration"
-    task_key = 'window_close'
-
-
-class MouseGroupedSelectionDurationExtractor(TaskCompletionDurationBase):
-    name = "mouse_grouped_selection_duration"
-    task_key = 'trash_bin_select'
 
 
 class MouseOpenFileManagerDurationExtractor(TaskCompletionDurationBase):
@@ -391,6 +358,44 @@ class MouseOpenBrowserDurationExtractor(TaskCompletionDurationBase):
     task_key = 'browser_homescreen'
 
 
+class MouseConfirmDialogDurationExtractor(TaskCompletionDurationBase):
+    name = "mouse_confirm_dialog_duration"
+    task_key = 'trash_bin_confirm'
+
+
+class MouseNotificationDurationExtractor(TaskCompletionDurationBase):
+    name = "mouse_notification_duration"
+    task_key = 'mail_notification'
+
+
+class MouseOpenFolderDurationExtractor(TaskCompletionDurationBase):
+    name = "mouse_open_folder_duration"
+    task_key = 'file_manager_opening'
+
+
+class MouseDragFolderDurationExtractor(TaskCompletionDurationBase):
+    name = "mouse_drag_folder_duration"
+    task_key = 'file_manager_dragging'
+
+
+class MouseCloseWindowDurationExtractor(UsingOperatingSystemMode):
+    name = "mouse_close_window_duration"
+    task_key = 'window_close'
+
+    def process(self, parser):
+        typing_task = parser[self.task_key]
+        typing_task = [entry for entry in typing_task if entry['window_close_target_name'] == 'Close']
+        # Extracting values for plotting
+        x_values = self.get_condition(parser, typing_task)
+        y_values = [entry[f"{self.task_key}.stopped"] - entry[f"{self.task_key}.started"] for entry in typing_task]
+        return x_values, y_values
+
+
+class MouseGroupedSelectionDurationExtractor(TaskCompletionDurationBase):
+    name = "mouse_grouped_selection_duration"
+    task_key = 'trash_bin_select'
+
+
 class KeyboardShadowTypingDurationExtractor(TaskCompletionDurationBase):
     name = "keyboard_shadow_typing_duration"
     task_key = 'mail_content'
@@ -401,7 +406,7 @@ class KeyboardSideBySideTypingDurationExtractor(TaskCompletionDurationBase):
     task_key = 'notes_repeat'
 
 
-class KeyboardShadowTypingErrorExtractor:
+class KeyboardShadowTypingErrorExtractor(UsingOperatingSystemMode):
     name = "keyboard_shadow_typing_error"
 
     def process(self, parser):
@@ -409,14 +414,14 @@ class KeyboardShadowTypingErrorExtractor:
         task_keyboard = 'mail.mail_content_user_key_release'
         typing_task = parser[task_key]
         # Extracting values for plotting
-        x_values = [entry[f"{task_key}.started"] for entry in typing_task]
+        x_values = self.get_condition(parser, typing_task)
         y_values = []
         for entry in typing_task:
             y_values.append(entry[f"{task_keyboard}.keys"].count("backspace"))
         return x_values, y_values
 
 
-class KeyboardSideBySideTypingErrorExtractor:
+class KeyboardSideBySideTypingErrorExtractor(UsingOperatingSystemMode):
     name = "keyboard_side_by_side_typing_error"
 
     def process(self, parser):
@@ -424,14 +429,14 @@ class KeyboardSideBySideTypingErrorExtractor:
         task_keyboard = 'notes.notes_repeat_keyboard'
         typing_task = parser[task_key]
         # Extracting values for plotting
-        x_values = [entry[f"{task_key}.started"] for entry in typing_task]
+        x_values = self.get_condition(parser, typing_task)
         y_values = []
         for entry in typing_task:
             y_values.append(entry[f"{task_keyboard}.keys"].count("backspace"))
         return x_values, y_values
 
 
-class KeyboardTypingSpeedExtractor:
+class KeyboardTypingSpeedExtractor(UsingOperatingSystemMode):
     name = "keyboard_typing_speed"
 
     @staticmethod
@@ -447,7 +452,7 @@ class KeyboardTypingSpeedExtractor:
         ]:
             typing_task = parser[task_key]
             # Extracting values for plotting
-            x_values.extend([entry[f"{task_key}.started"] for entry in typing_task])
+            x_values.extend(self.get_condition(parser, typing_task))
             y_values.extend([
                 KeyboardTypingSpeedExtractor.count_effective_keys(entry[f"{task_keyboard}.keys"]) / (
                             entry[f"{task_key}.stopped"] - entry[f"{task_key}.started"])
@@ -455,7 +460,7 @@ class KeyboardTypingSpeedExtractor:
         return x_values, y_values
 
 
-class KeyboardShadowTypingEfficiencyExtractor:
+class KeyboardShadowTypingEfficiencyExtractor(UsingOperatingSystemMode):
     name = "keyboard_shadow_typing_efficiency"
 
     def process(self, parser):
@@ -464,7 +469,7 @@ class KeyboardShadowTypingEfficiencyExtractor:
         task_prefix = 'single_note'
         typing_task = parser[task_key]
         # Extracting values for plotting
-        x_values = [entry[f"{task_key}.started"] for entry in typing_task]
+        x_values = self.get_condition(parser, typing_task)
         y_values = []
         for entry in typing_task:
             typing_speed = KeyboardTypingSpeedExtractor.count_effective_keys(entry[f"{task_keyboard}.keys"]) / (
@@ -477,7 +482,7 @@ class KeyboardShadowTypingEfficiencyExtractor:
         return x_values, y_values
 
 
-class KeyboardSideBySideTypingEfficiencyExtractor:
+class KeyboardSideBySideTypingEfficiencyExtractor(UsingOperatingSystemMode):
     name = "keyboard_side_by_side_typing_efficiency"
 
     def process(self, parser):
@@ -486,7 +491,7 @@ class KeyboardSideBySideTypingEfficiencyExtractor:
         task_prefix = 'notes'
         typing_task = parser[task_key]
         # Extracting values for plotting
-        x_values = [entry[f"{task_key}.started"] for entry in typing_task]
+        x_values = self.get_condition(parser, typing_task)
         y_values = []
         for entry in typing_task:
             typing_speed = KeyboardTypingSpeedExtractor.count_effective_keys(entry[f"{task_keyboard}.keys"]) / (
@@ -499,7 +504,7 @@ class KeyboardSideBySideTypingEfficiencyExtractor:
         return x_values, y_values
 
 
-class KeyboardSpaceKeyTypingDurationExtractor:
+class KeyboardSpaceKeyTypingDurationExtractor(UsingOperatingSystemMode):
     name = "keyboard_space_key_typing_duration"
 
     def process(self, parser):
@@ -518,12 +523,12 @@ class KeyboardSpaceKeyTypingDurationExtractor:
                 recorded_duration = entry[f"{task_keyboard}.duration"]
                 for key, rt, duration in zip(recorded_keys, recorded_rt, recorded_duration):
                     if key == "space":
-                        x_values.append(recorded_start_time + rt)
+                        x_values.append(self.get_entry_condition(parser, entry))
                         y_values.append(rt)
         return x_values, y_values
 
 
-class KeyboardSpaceKeyPressedDurationExtractor:
+class KeyboardSpaceKeyPressedDurationExtractor(UsingOperatingSystemMode):
     name = "keyboard_space_key_pressed_duration"
 
     def process(self, parser):
@@ -542,12 +547,12 @@ class KeyboardSpaceKeyPressedDurationExtractor:
                 recorded_duration = entry[f"{task_keyboard}.duration"]
                 for key, rt, duration in zip(recorded_keys, recorded_rt, recorded_duration):
                     if key == "space":
-                        x_values.append(recorded_start_time + rt)
+                        x_values.append(self.get_entry_condition(parser, entry))
                         y_values.append(duration)
         return x_values, y_values
 
 
-class KeyboardPressedDurationExtractor:
+class KeyboardPressedDurationExtractor(UsingOperatingSystemMode):
     name = "keyboard_pressed_duration"
 
     def process(self, parser):
@@ -564,13 +569,13 @@ class KeyboardPressedDurationExtractor:
                 recorded_rt = entry[f"{task_keyboard}.rt"]
                 recorded_duration = entry[f"{task_keyboard}.duration"]
                 for rt, duration in zip(recorded_rt, recorded_duration):
-                    x_values.append(recorded_start_time + rt)
+                    x_values.append(self.get_entry_condition(parser, entry))
                     y_values.append(duration)
         return x_values, y_values
 
 
 if __name__ == '__main__':
-    predictor_definitions = [
+    variable_definitions = [
         MouseDoubleClickDistanceExtractor(),
         MouseDragDistanceExtractor(),
         MouseDropDistanceExtractor(),
@@ -601,43 +606,38 @@ if __name__ == '__main__':
         KeyboardSideBySideTypingEfficiencyExtractor()
     ]
 
-    outcome_definition = AttentivenessAnswerExtractor()
+    enrollment = os.path.join("..", "..", "data", "participant_enrollment.csv")
+    condition_definitions = HandednessExtractor(enrollment)
 
     processed = {}
 
     for psydat_file in tqdm(psydat_files):
         participant_id = int(psydat_file.split("_")[0])
         parser = DataParser(os.path.join("..", "..", "data", psydat_file))
-        outcome_times, outcome_values = outcome_definition.process(parser)
-        outcome_times, outcome_values = filter_time_series(outcome_times, outcome_values)
-        for extractor in predictor_definitions:
+        for extractor in variable_definitions:
             predictor_name = extractor.name
-            predictor_times, predictor_values = extractor.process(parser)
+            predictor_os, predictor_values = extractor.process(parser)
+            assert len(predictor_os) == len(predictor_values), "Size doesn't match!"
             predictor_associated_values = []
             predictor_associated_vars = []
-            predictor_times = np.array(predictor_times)
+            predictor_os = np.array(predictor_os)
             predictor_values = np.array(predictor_values)
-            for outcome_time in outcome_times:
-                associated_values = predictor_values[(predictor_times > outcome_time - SMOOTH_WINDOW) & (predictor_times <= outcome_time)]
-                predictor_associated_values.append(np.mean(associated_values))
-                predictor_associated_vars.append(np.std(associated_values))
-            if f"{predictor_name}_mean" not in processed:
-                processed[f"{predictor_name}_mean"] = []
-            processed[f"{predictor_name}_mean"].extend(predictor_associated_values)
-            if f"{predictor_name}_var" not in processed:
-                processed[f"{predictor_name}_var"] = []
-            processed[f"{predictor_name}_var"].extend(predictor_associated_vars)
-        if "time" not in processed:
-            processed["time"] = []
-        processed["time"].extend(outcome_times)
-        if outcome_definition.name not in processed:
-            processed[outcome_definition.name] = []
-        processed[outcome_definition.name].extend(outcome_values)
-        if "participant" not in processed:
-            processed["participant"] = []
-        processed["participant"].extend([participant_id] * len(outcome_values))
 
-    processed = filter_nan_indices(processed)
+            if "name" not in processed:
+                processed["name"] = []
+            processed["name"].extend([predictor_name] * len(predictor_values))
+            if "handedness" not in processed:
+                processed["handedness"] = []
+            processed["handedness"].extend([condition_definitions.process(participant_id)] * len(predictor_values))
+            if "os" not in processed:
+                processed["os"] = []
+            processed["os"].extend(predictor_os)
+            if "value" not in processed:
+                processed["value"] = []
+            processed["value"].extend(predictor_values)
+            if "participant" not in processed:
+                processed["participant"] = []
+            processed["participant"].extend([participant_id] * len(predictor_values))
 
     # Convert processed dictionary to DataFrame
     df = pd.DataFrame(processed)
@@ -648,7 +648,7 @@ if __name__ == '__main__':
         os.makedirs(save_directory)
 
     # Save to CSV file
-    df.to_csv(os.path.join(save_directory, f"{len(psydat_files)}-{outcome_definition.name}.csv"), index=False)
+    df.to_csv(os.path.join(save_directory, f"{len(psydat_files)}-{condition_definitions.name}.csv"), index=False)
 
     print("Processed data saved.")
 
