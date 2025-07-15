@@ -21,7 +21,9 @@ name_labels <- list(
   mouse_confirm_dialog_duration = "Time taken to confirm the popup (s)",
   mouse_toolbar_navigation_speed = "Mouse navigation speed on the toolbar (px/s)",
   keyboard_pressed_duration = "Duration of key pressed on the keyboard (ms)",
-  mouse_close_window_duration = "Time taken to close the application (s)"
+  mouse_close_window_duration = "Time taken to close the application (s)",
+  mouse_close_window_unintended_clicks = "Unintended mouse clicks to close the application (n)",
+  mouse_close_to_toolbar_navigation_speed = "Mouse navigation speed when approaching the toolbar (px/s)"
 )
 
 # Filter for significant results only

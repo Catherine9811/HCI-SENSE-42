@@ -46,7 +46,8 @@ class DataParser:
             "browser_homescreen",
             "browser_navigation",
             "browser_content",
-            "experiment_end"
+            "experiment_end",
+            "pause_on"
         ]:
             return [entry for entry in self.data.entries if f"{item}.started" in entry]
         return [entry for entry in self.data.entries if item in entry]

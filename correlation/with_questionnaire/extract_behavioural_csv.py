@@ -328,6 +328,157 @@ class MouseToolbarNavigationSpeedExtractor:
         return x_values, y_values
 
 
+class MouseOpenFolderUnintendedClicksExtractor:
+    name = "mouse_open_folder_unintended_clicks"
+
+    @staticmethod
+    def mouse_misclicked_times(mouse_pressed, ignore_beginning=True, ignore_ending=True):
+        """
+        Counts the number of groups of continuous 1s in the mouse_pressed sequence,
+        optionally ignoring leading and/or trailing 1s.
+
+        Args:
+            mouse_pressed (list or array-like): List of 0s and 1s indicating mouse press state.
+            ignore_beginning (bool): Whether to ignore leading 1s at the start.
+            ignore_ending (bool): Whether to ignore trailing 1s at the end.
+
+        Returns:
+            int: Number of groups of consecutive 1s (mouse misclicks), considering options.
+        """
+        n = len(mouse_pressed)
+        start = 0
+        end = n
+
+        # Ignore leading 1s
+        if ignore_beginning:
+            while start < n and mouse_pressed[start] == 1:
+                start += 1
+
+        # Ignore trailing 1s
+        if ignore_ending:
+            while end > start and mouse_pressed[end - 1] == 1:
+                end -= 1
+
+        # Count transitions from 0 to 1
+        in_group = False
+        group_count = 0
+        for i in range(start, end):
+            if mouse_pressed[i] == 1:
+                if not in_group:
+                    group_count += 1
+                    in_group = True
+            else:
+                in_group = False
+
+        return group_count
+
+    def process(self, parser):
+        task_key = 'stimuli_reaction_mouse_movement.started'
+        typing_task = parser[task_key]
+        # Extracting values for plotting
+        x_values = [entry[f"{task_key}"] for entry in typing_task]
+
+        y_values = []
+
+        for entry in typing_task:
+            # Get right keys for entry
+            candidates = [key for key in entry.keys()
+                          if key.endswith(f".{task_key.replace('started', 'time')}") and len(entry[key]) > 0]
+            assert len(candidates) > 0, f"{candidates}"
+            key = candidates[-1]
+            left_button = entry[key.replace(".time", ".leftButton")]
+            y_values.append(MouseOpenFolderUnintendedClicksExtractor.mouse_misclicked_times(left_button))
+        return x_values, y_values
+
+
+class MouseCloseWindowUnintendedClicksExtractor:
+    name = "mouse_close_window_unintended_clicks"
+
+    def process(self, parser):
+        task_key = 'window_close_mouse.started'
+        typing_task = parser[task_key]
+        # Extracting values for plotting
+        x_values = [entry[f"{task_key}"] for entry in typing_task]
+
+        y_values = []
+
+        for entry in typing_task:
+            # Get right keys for entry
+            candidates = [key for key in entry.keys()
+                          if key.endswith(f".{task_key.replace('started', 'time')}") and len(entry[key]) > 0]
+            assert len(candidates) > 0, f"{candidates}"
+            key = candidates[-1]
+            left_button = entry[key.replace(".time", ".leftButton")]
+            y_values.append(MouseOpenFolderUnintendedClicksExtractor.mouse_misclicked_times(left_button))
+        return x_values, y_values
+
+
+class MouseOpenFolderClickingDurationExtractor:
+    name = "mouse_open_folder_clicking_duration"
+
+    @staticmethod
+    def mouse_pressed_frames(mouse_pressed, ignore_beginning=True):
+        """
+            Counts the number of frames where the mouse is pressed (value == 1),
+            optionally ignoring leading 1s at the beginning of the array.
+
+            Args:
+                mouse_pressed (list or array-like): List of 0s and 1s indicating mouse press state.
+                ignore_beginning (bool): Whether to ignore leading 1s at the start.
+
+            Returns:
+                int: Number of frames with mouse pressed, considering the ignore_beginning flag.
+            """
+        if ignore_beginning:
+            # Skip leading 1s
+            i = 0
+            while i < len(mouse_pressed) and mouse_pressed[i] == 1:
+                i += 1
+            return sum(mouse_pressed[i:])
+        else:
+            return sum(mouse_pressed)
+
+    def process(self, parser):
+        task_key = 'stimuli_reaction_mouse_movement.started'
+        typing_task = parser[task_key]
+        # Extracting values for plotting
+        x_values = [entry[f"{task_key}"] for entry in typing_task]
+
+        y_values = []
+
+        for entry in typing_task:
+            # Get right keys for entry
+            candidates = [key for key in entry.keys()
+                          if key.endswith(f".{task_key.replace('started', 'time')}") and len(entry[key]) > 0]
+            assert len(candidates) > 0, f"{candidates}"
+            key = candidates[-1]
+            left_button = entry[key.replace(".time", ".leftButton")]
+            y_values.append(MouseOpenFolderClickingDurationExtractor.mouse_pressed_frames(left_button))
+        return x_values, y_values
+
+
+class MouseCloseWindowClickingDurationExtractor:
+    name = "mouse_close_window_clicking_duration"
+
+    def process(self, parser):
+        task_key = 'window_close_mouse.started'
+        typing_task = parser[task_key]
+        # Extracting values for plotting
+        x_values = [entry[f"{task_key}"] for entry in typing_task]
+
+        y_values = []
+
+        for entry in typing_task:
+            # Get right keys for entry
+            candidates = [key for key in entry.keys()
+                          if key.endswith(f".{task_key.replace('started', 'time')}") and len(entry[key]) > 0]
+            assert len(candidates) > 0, f"{candidates}"
+            key = candidates[-1]
+            left_button = entry[key.replace(".time", ".leftButton")]
+            y_values.append(MouseOpenFolderClickingDurationExtractor.mouse_pressed_frames(left_button))
+        return x_values, y_values
+
+
 class TaskCompletionDurationBase:
     name = "task_completion_duration_base"
     task_key = None
@@ -598,10 +749,14 @@ if __name__ == '__main__':
         KeyboardSpaceKeyTypingDurationExtractor(),
         KeyboardPressedDurationExtractor(),
         KeyboardShadowTypingEfficiencyExtractor(),
-        KeyboardSideBySideTypingEfficiencyExtractor()
+        KeyboardSideBySideTypingEfficiencyExtractor(),
+        MouseOpenFolderClickingDurationExtractor(),
+        MouseCloseWindowClickingDurationExtractor(),
+        MouseOpenFolderUnintendedClicksExtractor(),
+        MouseCloseWindowUnintendedClicksExtractor()
     ]
 
-    outcome_definition = AttentivenessAnswerExtractor()
+    outcome_definition = SleepinessAnswerExtractor()
 
     processed = {}
 

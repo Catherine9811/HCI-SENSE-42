@@ -55,35 +55,24 @@ def scale_width_measurement_to_screen_height(width):
     return width * SCREEN_ASPECT_RATIO
 
 
-class OperatingSystemPreferenceExtractor:
-    name = "operating_system"
+class KeyboardUsageFrequencyExtractor:
+    name = "keyboard_frequency"
 
     def __init__(self, csv_path):
         self.enrollment = pd.read_csv(csv_path)
         self.id_column = "Participant ID"
-        self.os_column = "What operating system(s) do you use most frequently? (select ALL that apply):"
+        self.uh_column = "How frequently do you use a keyboard for computer-related tasks?"
         # Extract the relevant columns
-        data = self.enrollment[[self.id_column, self.os_column]].dropna()
+        data = self.enrollment[[self.id_column, self.uh_column]].dropna()
 
-        # Create a dictionary: {participant_id (int): [os1, os2, ...]}
-        self.os_dict = {
-            int(row[self.id_column]): [os.strip() for os in str(row[self.os_column]).split(';') if os.strip()]
+        # Create a dictionary: {participant_id (int): str}
+        self.uh_dict = {
+            int(row[self.id_column]): str(row[self.uh_column])
             for _, row in data.iterrows()
         }
 
-    def process(self, participant_id: int, experiment_os_list: [str]):
-        preferred_os_list = self.os_dict.get(participant_id, [])
-        preferred_os_list = [item.lower() for item in preferred_os_list]
-        return [
-            os.lower() in preferred_os_list or
-            ((os.lower() == "mac" or os.lower() == "macos") and ("macos" in preferred_os_list)) or
-            (os.lower() == "windows" and ("linux" in preferred_os_list or "chrome os" in preferred_os_list))
-            for os in experiment_os_list
-        ]
-
-    def count(self, participant_id: int):
-        preferred_os_list = self.os_dict.get(participant_id, [])
-        return len(preferred_os_list)
+    def process(self, participant_id: int):
+        return self.uh_dict.get(participant_id, "")
 
 
 class UsingOperatingSystemMode:
@@ -333,153 +322,6 @@ class MouseToolbarNavigationSpeedExtractor(UsingOperatingSystemMode):
             x = entry[key.replace(".time", ".x")]
             y = entry[key.replace(".time", ".y")]
             y_values.append(MouseToolbarNavigationSpeedExtractor.total_movements(x, y) / entry[key][-1])
-        return x_values, y_values
-
-
-class MouseCloseToToolbarNavigationSpeedExtractor(UsingOperatingSystemMode):
-    name = "mouse_close_to_toolbar_navigation_speed"
-
-    @staticmethod
-    def total_movements(x, y):
-        if len(x) < 2 or len(y) < 2:
-            return 0  # Not enough points to calculate movement
-
-        # Compute total trajectory distance (sum of Euclidean distances between consecutive points)
-        total_distance = sum(np.hypot(scale_width_measurement_to_screen_height(np.diff(x)), np.diff(y)))
-
-        return total_distance
-
-    def process(self, parser):
-        task_key = 'window_close_mouse.started'
-        typing_task = parser[task_key]
-        typing_task = [entry for entry in typing_task if entry['window_close_target_name'] == 'Close']
-
-        x_values = self.get_condition(parser, typing_task)
-        y_values = []
-
-        for entry in typing_task:
-            candidates = [key for key in entry.keys()
-                          if key.endswith(f".{task_key.replace('started', 'time')}") and len(entry[key]) > 0]
-            assert candidates, f"No matching keys found for entry: {entry}"
-            key = candidates[-1]
-
-            x = np.array(entry[key.replace(".time", ".x")])
-            y = np.array(entry[key.replace(".time", ".y")])
-            t = np.array(entry[key])
-
-            if len(x) < 2:
-                y_values.append(0)
-                continue
-
-            # Distance to final point
-            dx = x - x[-1]
-            dy = y - y[-1]
-            distances = np.hypot(dx, dy)
-
-            # Mask for points within 0.25 distance of the final point
-            mask = distances <= 0.25
-
-            # Ensure at least two points remain
-            if np.sum(mask) < 2:
-                y_values.append(0)
-                continue
-
-            # Filtered x, y for movement calculation
-            xf = x[mask]
-            yf = y[mask]
-            tf = t[mask]
-
-            total_distance = MouseToolbarNavigationSpeedExtractor.total_movements(xf, yf)
-            duration = tf[-1] - tf[0]
-            speed = total_distance / duration if duration > 0 else 0
-
-            y_values.append(speed)
-
-        return x_values, y_values
-
-
-class MouseOpenFolderUnintendedClicksExtractor(UsingOperatingSystemMode):
-    name = "mouse_open_folder_unintended_clicks"
-
-    @staticmethod
-    def mouse_misclicked_times(mouse_pressed, ignore_beginning=True, ignore_ending=True):
-        """
-        Counts the number of groups of continuous 1s in the mouse_pressed sequence,
-        optionally ignoring leading and/or trailing 1s.
-
-        Args:
-            mouse_pressed (list or array-like): List of 0s and 1s indicating mouse press state.
-            ignore_beginning (bool): Whether to ignore leading 1s at the start.
-            ignore_ending (bool): Whether to ignore trailing 1s at the end.
-
-        Returns:
-            int: Number of groups of consecutive 1s (mouse misclicks), considering options.
-        """
-        n = len(mouse_pressed)
-        start = 0
-        end = n
-
-        # Ignore leading 1s
-        if ignore_beginning:
-            while start < n and mouse_pressed[start] == 1:
-                start += 1
-
-        # Ignore trailing 1s
-        if ignore_ending:
-            while end > start and mouse_pressed[end - 1] == 1:
-                end -= 1
-
-        # Count transitions from 0 to 1
-        in_group = False
-        group_count = 0
-        for i in range(start, end):
-            if mouse_pressed[i] == 1:
-                if not in_group:
-                    group_count += 1
-                    in_group = True
-            else:
-                in_group = False
-
-        return group_count
-
-    def process(self, parser):
-        task_key = 'stimuli_reaction_mouse_movement.started'
-        typing_task = parser[task_key]
-        # Extracting values for plotting
-        x_values = self.get_condition(parser, typing_task)
-
-        y_values = []
-
-        for entry in typing_task:
-            # Get right keys for entry
-            candidates = [key for key in entry.keys()
-                          if key.endswith(f".{task_key.replace('started', 'time')}") and len(entry[key]) > 0]
-            assert len(candidates) > 0, f"{candidates}"
-            key = candidates[-1]
-            left_button = entry[key.replace(".time", ".leftButton")]
-            y_values.append(MouseOpenFolderUnintendedClicksExtractor.mouse_misclicked_times(left_button))
-        return x_values, y_values
-
-
-class MouseCloseWindowUnintendedClicksExtractor(UsingOperatingSystemMode):
-    name = "mouse_close_window_unintended_clicks"
-
-    def process(self, parser):
-        task_key = 'window_close_mouse.started'
-        typing_task = parser[task_key]
-        # Extracting values for plotting
-        x_values = self.get_condition(parser, typing_task)
-
-        y_values = []
-
-        for entry in typing_task:
-            # Get right keys for entry
-            candidates = [key for key in entry.keys()
-                          if key.endswith(f".{task_key.replace('started', 'time')}") and len(entry[key]) > 0]
-            assert len(candidates) > 0, f"{candidates}"
-            key = candidates[-1]
-            left_button = entry[key.replace(".time", ".leftButton")]
-            y_values.append(MouseOpenFolderUnintendedClicksExtractor.mouse_misclicked_times(left_button))
         return x_values, y_values
 
 
@@ -761,14 +603,11 @@ if __name__ == '__main__':
         KeyboardSpaceKeyTypingDurationExtractor(),
         KeyboardPressedDurationExtractor(),
         KeyboardShadowTypingEfficiencyExtractor(),
-        KeyboardSideBySideTypingEfficiencyExtractor(),
-        MouseCloseWindowUnintendedClicksExtractor(),
-        MouseOpenFolderUnintendedClicksExtractor(),
-        MouseCloseToToolbarNavigationSpeedExtractor()
+        KeyboardSideBySideTypingEfficiencyExtractor()
     ]
 
     enrollment = os.path.join("..", "..", "data", "participant_enrollment.csv")
-    condition_definitions = OperatingSystemPreferenceExtractor(enrollment)
+    condition_definitions = KeyboardUsageFrequencyExtractor(enrollment)
 
     processed = {}
 
@@ -787,12 +626,9 @@ if __name__ == '__main__':
             if "name" not in processed:
                 processed["name"] = []
             processed["name"].extend([predictor_name] * len(predictor_values))
-            if "preferred" not in processed:
-                processed["preferred"] = []
-            processed["preferred"].extend(condition_definitions.process(participant_id, predictor_os))
-            if "count" not in processed:
-                processed["count"] = []
-            processed["count"].extend([condition_definitions.count(participant_id)] * len(predictor_values))
+            if "keyboard_frequency" not in processed:
+                processed["keyboard_frequency"] = []
+            processed["keyboard_frequency"].extend([condition_definitions.process(participant_id)] * len(predictor_values))
             if "os" not in processed:
                 processed["os"] = []
             processed["os"].extend(predictor_os)

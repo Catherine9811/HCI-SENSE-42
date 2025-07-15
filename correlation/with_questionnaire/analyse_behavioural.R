@@ -9,6 +9,8 @@ outcome_variable <- "sleepiness"
 # Read the data from the CSV file
 data <- read.csv(paste("processed_data/behavioural/42-", outcome_variable, ".csv", sep=""), sep=",")
 
+data[[outcome_variable]] <- as.numeric(data[[outcome_variable]])
+
 output_file <- paste("processed_data/behavioural/42-", outcome_variable, "-output.csv", sep="")
 
 # Define the predictors
@@ -41,6 +43,10 @@ predictors <- c(
   "mouse_open_trash_bin_duration_mean", "mouse_open_trash_bin_duration_var",
   "mouse_open_notes_duration_mean", "mouse_open_notes_duration_var",
   "mouse_open_browser_duration_mean", "mouse_open_browser_duration_var",
+  "mouse_open_folder_clicking_duration_mean", "mouse_open_folder_clicking_duration_var",
+  "mouse_close_window_clicking_duration_mean", "mouse_close_window_clicking_duration_var",
+  "mouse_open_folder_unintended_clicks_mean", "mouse_open_folder_unintended_clicks_var",
+  "mouse_close_window_unintended_clicks_mean", "mouse_close_window_unintended_clicks_var",
   "time"
 )
 
