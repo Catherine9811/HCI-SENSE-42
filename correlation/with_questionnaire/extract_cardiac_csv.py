@@ -40,7 +40,7 @@ class CardiacRRIntervalExtractor:
     def process(self, ecg):
         # Detect ECG events (R-waves) in lead II using find_ecg_events
         # Note: find_ecg_events returns three values; here we only need the first one which contains event positions.
-        ecg_events, ch_ecg, average_pulse = mne.preprocessing.find_ecg_events(ecg, ch_name='ECG2')
+        ecg_events, ch_ecg, average_pulse = mne.preprocessing.find_ecg_events(ecg, ch_name='ECG2', tstart=60.0)
 
         # Plot the derived 3-lead ECG signals
         # ecg.plot(title='Derived 3-lead ECG signals', events=ecg_events, duration=10, n_channels=3)
@@ -80,7 +80,7 @@ if __name__ == '__main__':
         ecg_filename = os.path.join("..", "..", "data", "ECG", f"P{participant_id:03}.fif")
         if not os.path.exists(ecg_filename):
             continue
-        ecg_file = mne.io.read_raw_fif(ecg_filename, preload=True)
+        ecg_file = mne.io.read_raw_fif(ecg_filename, preload=True, verbose='WARNING')
 
         for extractor in predictor_definitions:
             predictor_name = extractor.name

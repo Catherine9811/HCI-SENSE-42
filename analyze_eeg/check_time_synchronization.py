@@ -19,7 +19,7 @@ EEG_SIGNAL_DEFINITION = {
     # DEFINITION.MAIL_CONTENT_BEGIN: "mail_content.started",
     # DEFINITION.FILE_MANAGER_HOMESCREEN_BEGIN: "file_manager_homescreen.started",
     DEFINITION.FILE_MANAGER_DRAGGING_BEGIN: "file_manager_dragging.started",
-    DEFINITION.FILE_MANAGER_OPENING_BEGIN: "file_manager_opening.started",
+    # DEFINITION.FILE_MANAGER_OPENING_BEGIN: "file_manager_opening.started",
     # DEFINITION.TRASH_BIN_HOMESCREEN_BEGIN: "trash_bin_homescreen.started",
     # DEFINITION.TRASH_BIN_SELECT_BEGIN: "trash_bin_select.started",
     # DEFINITION.TRASH_BIN_CONFIRM_BEGIN: "trash_bin_confirm.started",
@@ -35,12 +35,15 @@ times_to_plot = []
 errors_to_plot = []
 colors_to_plot = []
 
-for psydat_file in tqdm(psydat_files[1:2]):
+for psydat_file in tqdm(psydat_files[7:8]):
     participant_id = int(psydat_file.split("_")[0])
     parser = DataParser(os.path.join("..", "data", psydat_file))
 
     # Paused blocks
     paused_blocks = parser[EEG_PAUSE_BLOCK]
+
+    if len(paused_blocks) > 0:
+        print(f"P{participant_id:03d} PAUSED {len(paused_blocks)} TIMES!!!")
 
     # Define the file path
     bdf_file = rf"../data/EEG/P{participant_id:03d}.bdf"
@@ -72,6 +75,8 @@ for psydat_file in tqdm(psydat_files[1:2]):
             )
             adjusted_time = time_in_sec + total_pause_duration
             adjusted_event_times.append(adjusted_time)
+
+        # adjusted_event_times = matched_events / EEG_SAMPLING_FREQUENCY
 
         if len(adjusted_event_times) == 0:
             print(f"P{participant_id:03d} {task_name} ({signal_definition}) EVENT_NOT_FOUND "
