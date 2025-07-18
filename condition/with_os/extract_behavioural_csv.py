@@ -398,8 +398,9 @@ class MouseCloseToToolbarNavigationSpeedExtractor(UsingOperatingSystemMode):
         return x_values, y_values
 
 
-class MouseOpenFolderUnintendedClicksExtractor(UsingOperatingSystemMode):
-    name = "mouse_open_folder_unintended_clicks"
+class MouseUnintendedClicksBase(UsingOperatingSystemMode):
+    name = "mouse_unintended_clicks_base"
+    task_key = ""
 
     @staticmethod
     def mouse_misclicked_times(mouse_pressed, ignore_beginning=True, ignore_ending=True):
@@ -443,44 +444,61 @@ class MouseOpenFolderUnintendedClicksExtractor(UsingOperatingSystemMode):
         return group_count
 
     def process(self, parser):
-        task_key = 'stimuli_reaction_mouse_movement.started'
-        typing_task = parser[task_key]
+        mouse_task = parser[self.task_key]
         # Extracting values for plotting
-        x_values = self.get_condition(parser, typing_task)
+        x_values = self.get_condition(parser, mouse_task)
 
         y_values = []
 
-        for entry in typing_task:
+        for entry in mouse_task:
             # Get right keys for entry
             candidates = [key for key in entry.keys()
-                          if key.endswith(f".{task_key.replace('started', 'time')}") and len(entry[key]) > 0]
+                          if key.endswith(f".{self.task_key.replace('started', 'time')}") and len(entry[key]) > 0]
             assert len(candidates) > 0, f"{candidates}"
             key = candidates[-1]
             left_button = entry[key.replace(".time", ".leftButton")]
-            y_values.append(MouseOpenFolderUnintendedClicksExtractor.mouse_misclicked_times(left_button))
+            y_values.append(MouseUnintendedClicksBase.mouse_misclicked_times(left_button))
         return x_values, y_values
 
 
-class MouseCloseWindowUnintendedClicksExtractor(UsingOperatingSystemMode):
+class MouseOpenFolderUnintendedClicksExtractor(MouseUnintendedClicksBase):
+    name = "mouse_open_folder_unintended_clicks"
+    task_key = 'stimuli_reaction_mouse_movement.started'
+
+
+class MouseCloseWindowUnintendedClicksExtractor(MouseUnintendedClicksBase):
     name = "mouse_close_window_unintended_clicks"
+    task_key = 'window_close_mouse.started'
 
-    def process(self, parser):
-        task_key = 'window_close_mouse.started'
-        typing_task = parser[task_key]
-        # Extracting values for plotting
-        x_values = self.get_condition(parser, typing_task)
 
-        y_values = []
+class MouseOpenFileManagerUnintendedClicksExtractor(MouseUnintendedClicksBase):
+    name = "mouse_open_file_manager_unintended_clicks"
+    task_key = 'file_manager_mouse_homescreen.started'
 
-        for entry in typing_task:
-            # Get right keys for entry
-            candidates = [key for key in entry.keys()
-                          if key.endswith(f".{task_key.replace('started', 'time')}") and len(entry[key]) > 0]
-            assert len(candidates) > 0, f"{candidates}"
-            key = candidates[-1]
-            left_button = entry[key.replace(".time", ".leftButton")]
-            y_values.append(MouseOpenFolderUnintendedClicksExtractor.mouse_misclicked_times(left_button))
-        return x_values, y_values
+
+class MouseOpenTrashBinUnintendedClicksExtractor(MouseUnintendedClicksBase):
+    name = "mouse_open_trash_bin_unintended_clicks"
+    task_key = 'trash_bin_mouse_homescreen.started'
+
+
+class MouseOpenNotesUnintendedClicksExtractor(MouseUnintendedClicksBase):
+    name = "mouse_open_notes_unintended_clicks"
+    task_key = 'notes_mouse_homescreen.started'
+
+
+class MouseOpenBrowserUnintendedClicksExtractor(MouseUnintendedClicksBase):
+    name = "mouse_open_browser_unintended_clicks"
+    task_key = 'browser_mouse_homescreen.started'
+
+
+class MouseConfirmDialogUnintendedClicksExtractor(MouseUnintendedClicksBase):
+    name = "mouse_confirm_dialog_unintended_clicks"
+    task_key = 'trash_bin_confirm_mouse.started'
+
+
+class MouseOpenNotificationUnintendedClicksExtractor(MouseUnintendedClicksBase):
+    name = "mouse_open_notification_unintended_clicks"
+    task_key = 'mail_notification_mouse.started'
 
 
 class TaskCompletionDurationBase(UsingOperatingSystemMode):
@@ -764,7 +782,13 @@ if __name__ == '__main__':
         KeyboardSideBySideTypingEfficiencyExtractor(),
         MouseCloseWindowUnintendedClicksExtractor(),
         MouseOpenFolderUnintendedClicksExtractor(),
-        MouseCloseToToolbarNavigationSpeedExtractor()
+        MouseCloseToToolbarNavigationSpeedExtractor(),
+        MouseConfirmDialogUnintendedClicksExtractor(),
+        MouseOpenNotesUnintendedClicksExtractor(),
+        MouseOpenBrowserUnintendedClicksExtractor(),
+        MouseOpenFileManagerUnintendedClicksExtractor(),
+        MouseOpenTrashBinUnintendedClicksExtractor(),
+        MouseOpenNotificationUnintendedClicksExtractor(),
     ]
 
     enrollment = os.path.join("..", "..", "data", "participant_enrollment.csv")

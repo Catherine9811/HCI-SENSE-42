@@ -47,6 +47,12 @@ predictors <- c(
   "mouse_close_window_clicking_duration_mean", "mouse_close_window_clicking_duration_var",
   "mouse_open_folder_unintended_clicks_mean", "mouse_open_folder_unintended_clicks_var",
   "mouse_close_window_unintended_clicks_mean", "mouse_close_window_unintended_clicks_var",
+  "mouse_open_file_manager_unintended_clicks_mean", "mouse_open_file_manager_unintended_clicks_var",
+  "mouse_open_trash_bin_unintended_clicks_mean", "mouse_open_trash_bin_unintended_clicks_var",
+  "mouse_open_notes_unintended_clicks_mean", "mouse_open_notes_unintended_clicks_var",
+  "mouse_open_browser_unintended_clicks_mean", "mouse_open_browser_unintended_clicks_var",
+  "mouse_confirm_dialog_unintended_clicks_mean", "mouse_confirm_dialog_unintended_clicks_var",
+  "mouse_open_notification_unintended_clicks_mean", "mouse_open_notification_unintended_clicks_var",
   "time"
 )
 
