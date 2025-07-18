@@ -8,8 +8,8 @@ The dataset is publicly available on [Synapse](https://www.synapse.org/SENSE_42_
 
 The SENSE-42-HCI dataset includes multimodal data captured in a 2-hour session for 42 participants, including
 - Behavioural Data
-- 32-channel Electroencephalogram Recordings
-- Respiratory Cycles
+- 32-channel Electroencephalogram Recordings with BioSemi ActiveTwo System
+- Respiratory Cycles with Respiration Belt
 - 3-lead Electrocardiogram Recordings*
 - Webcam Recordings*
 
@@ -73,6 +73,7 @@ cd SENSE-42-HCI
 ```bash
 pip install -r requirements.txt
 ```
+> 💡 The `numpy` package version must match the `PsychoPy` package versions. In my case, numpy==1.26.4 and psychopy==2024.2.3
 
 ### Run a quick test
 ```bash
@@ -87,6 +88,24 @@ Data from sensors with different modalities are flattened to allow for separete 
 
 > 💡 You must login and agree to the conditions for use before accessing the webcam recordings as it contains sensitive information.
 
+## Data Preprocessing
+### 3-lead Electrocardiogram Recordings
+![ECG Electrodes Placement Information]()
+
+ECG signals are embedded in the external channels of the RAW EEG recording files and the electrode placement conventions is shown in the image above.
+
+
+### Respiratory Cycles
+
+Respiratory cycles are recorded in the `Resp` channel of the RAW EEG recording files.
+
+We used [RespInPeace](https://github.com/mwlodarczak/RespInPeace) to process and analyze breathing belt data and saved them as `.wav` files in 32 Hz.
+
+![Detected Keypoints from RespInPeace for P001]()
+
+### 32-channel Electroencephalogram Recordings
+
+It is recommended by BioSemi to apply `average` on all the electrodes before other processing steps to enhance the effective signal-to-noise ratio.
 
 ## Citation
 If you use this code or dataset, please cite:
