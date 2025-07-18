@@ -61,7 +61,7 @@ The SENSE-42-HCI dataset includes multimodal data captured in a 2-hour session f
 Prerequisites
 - Python 3.9+ installed
 - pip available
-- RStudio installed (to open R scripts)
+- RStudio installed (to run R scripts)
 
 ### Clone this repository
 ```bash
