@@ -4,6 +4,9 @@ This repository contains the [source code of the experiment](https://github.com/
 
 The dataset is publicly available on [Synapse](https://www.synapse.org/SENSE_42_HCI): https://www.synapse.org/SENSE_42_HCI
 
+![Experiment Information](https://github.com/Catherine9811/SENSE-42-HCI/blob/master/assets/experiment_flow.jpg)
+
+
 ## Dataset Description
 
 The SENSE-42-HCI dataset includes multimodal data captured in a 2-hour session for 42 participants, including
