@@ -1,15 +1,20 @@
 # SENSE-42: A multimodal dataset from a Simulated Environment for Neurocognitive State Evaluation during Human-Computer Interaction
 
+SENSE-42 is a publicly available, multimodal dataset designed to support the study of user state monitoring during extended computer interaction sessions via neurocognitive, physiological and behavioural responses. Combining high-resolution neurophysiological recordings with behavioral and subjective data, this dataset enables research on the alternations of attention, mental/physical fatigue, cognitive workload, and related subjective indices at a very early stage.
+
 This repository contains the [source code of the experiment](https://github.com/Catherine9811/SENSE-42-HCI/tree/experiment) implemented by [PsychoPy v2024.2.3](https://www.psychopy.org/), as well as the [Python and R scripts](https://github.com/Catherine9811/SENSE-42-HCI/tree/master) to parse and analyze the SENSE-42-HCI dataset.
 
-The dataset is publicly available on [Synapse](https://www.synapse.org/SENSE_42_HCI): https://www.synapse.org/SENSE_42_HCI
+The project includes both the raw dataset (available via [Synapse](https://www.synapse.org/Synapse:syn68713182/)) and the analysis codebase (available on [GitHub](https://github.com/Catherine9811/SENSE-42-HCI/), WIP) for replicability and reuse.
 
 ![Experiment Information](https://github.com/Catherine9811/SENSE-42-HCI/blob/master/assets/experiment_flow.jpg)
 
 
 ## Dataset Description
 
-The SENSE-42-HCI dataset includes multimodal data captured in a 2-hour session for 42 participants, including
+The dataset was collected from 42 participants over a 2-hour continuous interaction session, during which participants engaged in a series of designed tasks on a desktop computer with a mouse and keyboard. The experimental tasks were conducted within a fully simulated desktop operating system environment, designed to closely mimic real-world computer usage scenarios. This setup mirrors how people typically use computers in daily life. The simulated experiment program also enables the comprehensive capture of the mouse and keyboard data, synchronized with a high refresh rate monitor at 144 Hz. Recordings were collected in a noise-insulated room, minimizing external interruptions from the environment or the experimenter.
+
+The dataset includes multimodal data, including
+
 - Behavioural Data
 - 32-channel Electroencephalogram Recordings with BioSemi ActiveTwo System
 - Respiratory Cycles with Respiration Belt
