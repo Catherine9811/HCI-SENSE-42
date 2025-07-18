@@ -101,14 +101,14 @@ Respiratory cycles are recorded in the `Resp` channel of the RAW EEG recording f
 
 We used [RespInPeace](https://github.com/mwlodarczak/RespInPeace) to process and analyze breathing belt data and saved them as `.wav` files in 32 Hz.
 
-![Detected Keypoints from RespInPeace for P001](https://github.com/Catherine9811/SENSE-42-HCI/blob/master/assets/RespInPeace_output.png?raw=true)
+![Detected Keypoints from RespInPeace for P001](https://github.com/Catherine9811/SENSE-42-HCI/blob/master/assets/RespInPeace_output.png)
 
 ### 32-channel Electroencephalogram Recordings
 
 It is recommended by BioSemi to apply `average` on all the electrodes before other processing steps to enhance the effective signal-to-noise ratio.
 
 ## Citation
-If you use this code or dataset, please cite:
+If you find our work useful, please cite:
 ```bibtex
 @misc{
   SENSE-42-HCI,
