@@ -90,7 +90,7 @@ Data from sensors with different modalities are flattened to allow for separete 
 
 ## Data Preprocessing
 ### 3-lead Electrocardiogram Recordings
-![ECG Electrodes Placement Information]()
+![ECG Electrodes Placement Information](https://github.com/Catherine9811/SENSE-42-HCI/blob/master/assets/ECG_placement_convention.jpg)
 
 ECG signals are embedded in the external channels of the RAW EEG recording files and the electrode placement conventions is shown in the image above.
 
@@ -101,7 +101,7 @@ Respiratory cycles are recorded in the `Resp` channel of the RAW EEG recording f
 
 We used [RespInPeace](https://github.com/mwlodarczak/RespInPeace) to process and analyze breathing belt data and saved them as `.wav` files in 32 Hz.
 
-![Detected Keypoints from RespInPeace for P001]()
+![Detected Keypoints from RespInPeace for P001](https://github.com/Catherine9811/SENSE-42-HCI/blob/master/assets/RespInPeace_output.png?raw=true)
 
 ### 32-channel Electroencephalogram Recordings
 
