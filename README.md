@@ -2,11 +2,11 @@
 
 SENSE-42 is a publicly available, multimodal dataset designed to support the study of user state monitoring during extended computer interaction sessions via neurocognitive, physiological and behavioural responses. Combining high-resolution neurophysiological recordings with behavioral and subjective data, this dataset enables research on the alternations of attention, mental/physical fatigue, cognitive workload, and related subjective indices at a very early stage.
 
-This repository contains the [source code of the experiment](https://github.com/Catherine9811/SENSE-42-HCI/tree/experiment) implemented by [PsychoPy v2024.2.3](https://www.psychopy.org/), as well as the [Python and R scripts](https://github.com/Catherine9811/SENSE-42-HCI/tree/master) to parse and analyze the SENSE-42-HCI dataset.
+This repository contains the [source code of the experiment](https://github.com/Catherine9811/HCI-SENSE-42/tree/experiment) implemented by [PsychoPy v2024.2.3](https://www.psychopy.org/), as well as the [Python and R scripts](https://github.com/Catherine9811/HCI-SENSE-42/tree/master) to parse and analyze the HCI-SENSE-42 dataset.
 
-The project includes both the raw dataset (available via [Synapse](https://www.synapse.org/Synapse:syn68713182/)) and the analysis codebase (available on [GitHub](https://github.com/Catherine9811/SENSE-42-HCI/), WIP) for replicability and reuse.
+The project includes both the raw dataset (available via [Synapse](https://www.synapse.org/Synapse:syn68713182/)) and the analysis codebase (available on [GitHub](https://github.com/Catherine9811/HCI-SENSE-42/), WIP) for replicability and reuse.
 
-![Experiment Information](https://github.com/Catherine9811/SENSE-42-HCI/blob/master/assets/experiment_flow.jpg)
+![Experiment Information](https://github.com/Catherine9811/HCI-SENSE-42/blob/master/assets/experiment_flow.jpg)
 
 
 ## Dataset Description
@@ -62,7 +62,7 @@ The dataset includes multimodal data, including
     └── check_text_materials.py  # Parsing and visualization of the word distributions
 ```
 
-> 💡 After downloaded the [SENSE-42-HCI Dataset](https://www.synapse.org/Synapse:syn68714673), we expect them to be organized in the format listed above.
+> 💡 After downloaded the [HCI-SENSE-42 Dataset](https://www.synapse.org/Synapse:syn68714673), we expect them to be organized in the format listed above.
 
 ## Getting Started
 
@@ -73,8 +73,8 @@ Prerequisites
 
 ### Clone this repository
 ```bash
-git clone https://github.com/Catherine9811/SENSE-42-HCI.git
-cd SENSE-42-HCI
+git clone https://github.com/Catherine9811/HCI-SENSE-42.git
+cd HCI-SENSE-42
 ```
 
 ### Install the dependencies
@@ -98,7 +98,7 @@ Data from sensors with different modalities are flattened to allow for separete 
 
 ## Data Preprocessing
 ### 3-lead Electrocardiogram Recordings
-![ECG Electrodes Placement Information](https://github.com/Catherine9811/SENSE-42-HCI/blob/master/assets/ECG_placement_convention.jpg)
+![ECG Electrodes Placement Information](https://github.com/Catherine9811/HCI-SENSE-42/blob/master/assets/ECG_placement_convention.jpg)
 
 ECG signals are embedded in the external channels of the RAW EEG recording files and the electrode placement conventions is shown in the image above.
 
@@ -109,7 +109,7 @@ Respiratory cycles are recorded in the `Resp` channel of the RAW EEG recording f
 
 We used [RespInPeace](https://github.com/mwlodarczak/RespInPeace) to process and analyze breathing belt data and saved them as `.wav` files in 32 Hz.
 
-![Detected Keypoints from RespInPeace for P001](https://github.com/Catherine9811/SENSE-42-HCI/blob/master/assets/RespInPeace_output.png)
+![Detected Keypoints from RespInPeace for P001](https://github.com/Catherine9811/HCI-SENSE-42/blob/master/assets/RespInPeace_output.png)
 
 ### 32-channel Electroencephalogram Recordings
 
@@ -119,7 +119,7 @@ It is recommended by BioSemi to apply `average` on all the electrodes before oth
 If you find our work useful, please cite:
 ```bibtex
 @misc{
-  SENSE-42-HCI,
+  HCI-SENSE-42,
   title={SENSE-42 A multimodal dataset from a Simulated Environment for Neurocognitive State Evaluation during Human-Computer Interaction},
   url={https://repo-prod.prod.sagebase.org/repo/v1/doi/locate?portalId=1&id=syn68713182&type=ENTITY},
   DOI={10.7303/SYN68713182},
