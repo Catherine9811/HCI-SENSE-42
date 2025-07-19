@@ -90,7 +90,7 @@ python3 main.py
 
 ### Accessing the Dataset
 
-The dataset is hosted on [Synapse](https://www.synapse.org/SENSE_42_HCI): https://www.synapse.org/SENSE_42_HCI
+The dataset is hosted on [Synapse](https://www.synapse.org/HCI_SENSE_42): https://www.synapse.org/HCI_SENSE_42
 
 Data from sensors with different modalities are flattened to allow for separete downloads if not all of them are required in the analysis.
 
