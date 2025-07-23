@@ -4,6 +4,7 @@ import os
 import functools
 import pandas as pd
 import jellyfish
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.patches import FancyBboxPatch
 from matplotlib.patches import Polygon
@@ -16,6 +17,14 @@ from data_definition import psydat_files
 from extract_keyboard_handedness_csv import \
     KeyboardPressedDurationExtractor, KeyboardTypingDurationExtractor, KeyboardKeyCountExtractor
 
+# Use Arial for all text
+mpl.rcParams['font.family'] = 'Arial'
+mpl.rcParams['font.size'] = 14               # base font size
+mpl.rcParams['axes.titlesize'] = 16          # title font size
+mpl.rcParams['axes.labelsize'] = 14          # axis label font size
+mpl.rcParams['xtick.labelsize'] = 12         # x-tick label size
+mpl.rcParams['ytick.labelsize'] = 12         # y-tick label size
+mpl.rcParams['legend.fontsize'] = 12         # legend font size
 
 SCREEN_WIDTH = 1920
 SCREEN_HEIGHT = 1080
@@ -83,7 +92,7 @@ class HandednessExtractor:
 keyboard_layout = [
     # Row 1
     [('`', '~', 1.5), ('1', '!'), ('2', '"'), ('3', '£'), ('4', '$'), ('5', '%'), ('6', '^'),
-     ('7', '&'), ('8', '*'), ('9', '('), ('0', ')'), ('-', '_'), ('=', '+'), ('Backspace', '', 1.5)],
+     ('7', '&'), ('8', '*'), ('9', '('), ('0', ')'), ('-', '_'), ('=', '+'), ('Backspace', '', 1.8)],
 
     # Row 2
     [('Tab', '', 1.8), ('q', 'Q'), ('w', 'W'), ('e', 'E'), ('r', 'R'), ('t', 'T'), ('y', 'Y'),
@@ -103,8 +112,8 @@ keyboard_layout = [
 
     # Row 5
     [('Up', '', 2), ('Down', '', 2), ('Left', '', 2), ('Right', '', 2),
-     ('Esc', ''), ('SCREEN', 'PRINT'),
-     ('Home', ''), ('End', ''), ('Insert', ''), ('Delete', '')],
+     ('Esc', ''), ('SCR', 'PRT'),
+     ('Home', ''), ('End', ''), ('Insert', '', 1.5), ('Delete', '', 1.5)],
 ]
 
 keyboard_mapping = {
@@ -124,7 +133,7 @@ keyboard_mapping = {
     'shift': 'lshift',
     'caps lock': 'capslock',
     'esc': 'escape',
-    'screen': 'print_screen'
+    'scr': 'print_screen'
 }
 
 
@@ -135,7 +144,7 @@ def normalize(series):
     return (series - series.min()) / (series.max() - series.min())
 
 
-def draw_enter_key(ax, x, y, w1, w2, h, vertical_padding, facecolor, edgecolor="black", linewidth=0.6):
+def draw_enter_key(ax, x, y, w1, w2, h, vertical_padding, facecolor, textcolor, edgecolor="black", linewidth=0.6):
     # Define L-shaped points
     points = [
         (x, y),
@@ -157,10 +166,10 @@ def draw_enter_key(ax, x, y, w1, w2, h, vertical_padding, facecolor, edgecolor="
         center_x, center_y,
         "ENTER",
         ha="center", va="center",
-        fontsize=12,
+        fontsize=16,
         fontname="Arial",
         weight="medium",
-        color="white" if isinstance(facecolor, tuple) else "black",
+        color=textcolor,
         linespacing=2
     )
 
@@ -255,12 +264,20 @@ def plot_keyboard_heatmap_core(ax, variable, name, readable, reduce_mode, var_df
             norm_val = agg_normalized.get(keyboard_mapping.get(key_lower, key_lower), np.nan)
 
             # Determine color
-            color = plt.cm.copper_r(norm_val) if not pd.isna(norm_val) else "lightgrey"
+            color = plt.cm.magma_r(norm_val) if not pd.isna(norm_val) else "lightgrey"
+
+            if pd.isna(norm_val):
+                text_color = "black"
+            else:
+                rgb = color[:3]
+                luminance = 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]
+                # Set text color based on luminance
+                text_color = 'white' if luminance < 0.5 else 'black'
 
             if key_label == "Enter":
                 if has_enter:
                     continue
-                draw_enter_key(ax, x_offset, -y_offset + height, width, 1, height, vertical_padding, color)
+                draw_enter_key(ax, x_offset, -y_offset + height, width, 1, height, vertical_padding, color, text_color)
                 has_enter = True
             else:
                 # Draw rounded key
@@ -278,10 +295,10 @@ def plot_keyboard_heatmap_core(ax, variable, name, readable, reduce_mode, var_df
                 # Label rendering
                 if shift_label and shift_label != key_label.upper():
                     label_text = f"{shift_label}\n{key_label}"
-                    fontsize = 12
+                    fontsize = 16
                 else:
                     label_text = key_label.upper()
-                    fontsize = 12
+                    fontsize = 16
 
                 ax.text(
                     x_offset + width / 2,
@@ -290,20 +307,20 @@ def plot_keyboard_heatmap_core(ax, variable, name, readable, reduce_mode, var_df
                     ha="center",
                     va="center",
                     fontsize=fontsize,
-                    color="white" if not pd.isna(norm_val) else "black",
+                    color=text_color,
                     weight="medium",
                     fontname="Arial",
-                    linespacing=2,
+                    linespacing=1.5,
                 )
 
             x_offset += width + padding
         y_offset += height + vertical_padding
 
     # Colorbar
-    sm = plt.cm.ScalarMappable(cmap='copper_r', norm=plt.Normalize(vmin=agg.min(), vmax=agg.max()))
+    sm = plt.cm.ScalarMappable(cmap='magma_r', norm=plt.Normalize(vmin=agg.min(), vmax=agg.max()))
     sm.set_array([])
     cbar = plt.colorbar(sm, ax=ax, orientation='vertical', fraction=0.025, pad=0.02)
-    cbar.set_label(readable, fontsize=12)
+    cbar.set_label(readable, fontsize=16, rotation=270, labelpad=20)
 
 
 if __name__ == '__main__':
