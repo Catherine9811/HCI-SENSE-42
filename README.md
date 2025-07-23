@@ -1,15 +1,20 @@
-# SENSE-42: A multimodal dataset from a Simulated Environment for Neurocognitive State Evaluation during Human-Computer Interaction
+# SENSE-42: A Multimodal HCI Dataset from a Simulated Environment for Neurocognitive State Evaluation
 
-This repository contains the [source code of the experiment](https://github.com/Catherine9811/SENSE-42-HCI/tree/experiment) implemented by [PsychoPy v2024.2.3](https://www.psychopy.org/), as well as the [Python and R scripts](https://github.com/Catherine9811/SENSE-42-HCI/tree/master) to parse and analyze the SENSE-42-HCI dataset.
+SENSE-42 is a publicly available, multimodal dataset designed to support the study of user state monitoring during extended computer interaction sessions via neurocognitive, physiological and behavioural responses. Combining high-resolution neurophysiological recordings with behavioral and subjective data, this dataset enables research on the alternations of attention, mental/physical fatigue, cognitive workload, and related subjective indices at a very early stage.
 
-The dataset is publicly available on [Synapse](https://www.synapse.org/SENSE_42_HCI): https://www.synapse.org/SENSE_42_HCI
+This repository contains the [source code of the experiment](https://github.com/Catherine9811/HCI-SENSE-42/tree/experiment) implemented by [PsychoPy v2024.2.3](https://www.psychopy.org/), as well as the [Python and R scripts](https://github.com/Catherine9811/HCI-SENSE-42/tree/master) to parse and analyze the HCI-SENSE-42 dataset.
 
-![Experiment Information](https://github.com/Catherine9811/SENSE-42-HCI/blob/master/assets/experiment_flow.jpg)
+The project includes both the raw dataset (available via [Synapse](https://www.synapse.org/Synapse:syn68713182/)) and the analysis codebase (available on [GitHub](https://github.com/Catherine9811/HCI-SENSE-42/), WIP) for replicability and reuse.
+
+![Experiment Information](https://github.com/Catherine9811/HCI-SENSE-42/blob/master/assets/experiment_flow.jpg)
 
 
 ## Dataset Description
 
-The SENSE-42-HCI dataset includes multimodal data captured in a 2-hour session for 42 participants, including
+The dataset was collected from 42 participants over a 2-hour continuous interaction session, during which participants engaged in a series of designed tasks on a desktop computer with a mouse and keyboard. The experimental tasks were conducted within a fully simulated desktop operating system environment, designed to closely mimic real-world computer usage scenarios. This setup mirrors how people typically use computers in daily life. The simulated experiment program also enables the comprehensive capture of the mouse and keyboard data, synchronized with a high refresh rate monitor at 144 Hz. Recordings were collected in a noise-insulated room, minimizing external interruptions from the environment or the experimenter.
+
+The dataset includes multimodal data, including
+
 - Behavioural Data
 - 32-channel Electroencephalogram Recordings with BioSemi ActiveTwo System
 - Respiratory Cycles with Respiration Belt
@@ -57,7 +62,7 @@ The SENSE-42-HCI dataset includes multimodal data captured in a 2-hour session f
     └── check_text_materials.py  # Parsing and visualization of the word distributions
 ```
 
-> 💡 After downloaded the [SENSE-42-HCI Dataset](https://www.synapse.org/Synapse:syn68714673), we expect them to be organized in the format listed above.
+> 💡 After downloaded the [HCI-SENSE-42 Dataset](https://www.synapse.org/Synapse:syn68714673), we expect them to be organized in the format listed above.
 
 ## Getting Started
 
@@ -68,8 +73,8 @@ Prerequisites
 
 ### Clone this repository
 ```bash
-git clone https://github.com/Catherine9811/SENSE-42-HCI.git
-cd SENSE-42-HCI
+git clone https://github.com/Catherine9811/HCI-SENSE-42.git
+cd HCI-SENSE-42
 ```
 
 ### Install the dependencies
@@ -85,7 +90,7 @@ python3 main.py
 
 ### Accessing the Dataset
 
-The dataset is hosted on [Synapse](https://www.synapse.org/SENSE_42_HCI): https://www.synapse.org/SENSE_42_HCI
+The dataset is hosted on [Synapse](https://www.synapse.org/HCI_SENSE_42): https://www.synapse.org/HCI_SENSE_42
 
 Data from sensors with different modalities are flattened to allow for separete downloads if not all of them are required in the analysis.
 
@@ -93,7 +98,7 @@ Data from sensors with different modalities are flattened to allow for separete 
 
 ## Data Preprocessing
 ### 3-lead Electrocardiogram Recordings
-![ECG Electrodes Placement Information](https://github.com/Catherine9811/SENSE-42-HCI/blob/master/assets/ECG_placement_convention.jpg)
+![ECG Electrodes Placement Information](https://github.com/Catherine9811/HCI-SENSE-42/blob/master/assets/ECG_placement_convention.jpg)
 
 ECG signals are embedded in the external channels of the RAW EEG recording files and the electrode placement conventions is shown in the image above.
 
@@ -104,7 +109,7 @@ Respiratory cycles are recorded in the `Resp` channel of the RAW EEG recording f
 
 We used [RespInPeace](https://github.com/mwlodarczak/RespInPeace) to process and analyze breathing belt data and saved them as `.wav` files in 32 Hz.
 
-![Detected Keypoints from RespInPeace for P001](https://github.com/Catherine9811/SENSE-42-HCI/blob/master/assets/RespInPeace_output.png)
+![Detected Keypoints from RespInPeace for P001](https://github.com/Catherine9811/HCI-SENSE-42/blob/master/assets/RespInPeace_output.png)
 
 ### 32-channel Electroencephalogram Recordings
 
@@ -114,7 +119,7 @@ It is recommended by BioSemi to apply `average` on all the electrodes before oth
 If you find our work useful, please cite:
 ```bibtex
 @misc{
-  SENSE-42-HCI,
+  HCI-SENSE-42,
   title={SENSE-42 A multimodal dataset from a Simulated Environment for Neurocognitive State Evaluation during Human-Computer Interaction},
   url={https://repo-prod.prod.sagebase.org/repo/v1/doi/locate?portalId=1&id=syn68713182&type=ENTITY},
   DOI={10.7303/SYN68713182},
