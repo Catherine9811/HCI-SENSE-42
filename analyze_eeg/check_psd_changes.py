@@ -23,7 +23,7 @@ first_list = []
 last_list = []
 freqs = []
 fmin, fmax = 0.5, 20
-pmin, pmax = -5, 20
+pmin, pmax = -7.5, 20
 
 use_cache = True
 cache_folder = "data"
@@ -34,19 +34,22 @@ if not use_cache or \
         not os.path.exists(os.path.join(cache_folder, "psd_first_30min.npy")) or \
         not os.path.exists(os.path.join(cache_folder, "psd_last_30min.npy")):
     for participant_id in tqdm(range(1, 43)):
-        raw = mne.io.read_raw_eeglab(rf"C:\EEG\cleaned\P{participant_id:03d}.set", preload=True, eog=["REF"])
+        raw = mne.io.read_raw_eeglab(rf"D:\HCI PROCESSED DATA\AutomagicCleanedEEGLab\P{participant_id:03d}.set", preload=True, eog=["REF"])
         raw = raw.pick_channels(ch_names=[
-            # 'Fp1', 'Fp2', 'F7', 'F3', 'Fz', 'F4', 'F8',
-            # 'FC5', 'FC1', 'FC2', 'FC6',
-            # 'T7', 'C3', 'Cz', 'C4', 'T8',
-            # 'CP5', 'CP1', 'CP2', 'CP6',
-            # 'P7', 'P3', 'Pz', 'P4', 'P8'
-            # 'Cz'
-            'Fp1', 'Fp2', 'F9', 'F7', 'F3', 'Fz', 'F4', 'F8', 'F10', 'FC5', 'FC1', 'FC2', 'FC6', 'T9', 'T7', 'C3', 'Cz',
-            'C4', 'T8', 'T10', 'CP5', 'CP1', 'CP2', 'CP6', 'P9', 'P7', 'P3', 'Pz', 'P4', 'P8', 'P10'
+            "Fp1", "AF3", "F7", "F3", "FC1", "FC5", "T7", "C3", "CP1", "CP5", "P7", "P3",
+            "Pz", "PO3", "O1", "Oz", "O2", "PO4", "P4", "P8", "CP6", "CP2", "C4", "T8",
+            "FC6", "FC2", "F4", "F8", "AF4", "Fp2", "Fz",
+            "Cz"
         ])
 
-        # raw = raw.set_eeg_reference("average")
+        raw = raw.set_eeg_reference("average")
+
+        raw = raw.pick_channels(ch_names=[
+            "Fp1", "AF3", "F7", "F3", "FC1", "FC5", "T7", "C3", "CP1", "CP5", "P7", "P3",
+            "Pz", "PO3", "O1", "Oz", "O2", "PO4", "P4", "P8", "CP6", "CP2", "C4", "T8",
+            "FC6", "FC2", "F4", "F8", "AF4", "Fp2", "Fz",
+            "Cz"
+        ])
 
         # Calculate time durations
         total_duration = raw.times[-1]
