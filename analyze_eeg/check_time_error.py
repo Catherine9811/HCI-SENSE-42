@@ -123,4 +123,6 @@ timing_diff = timing_diff[timing_diff < limitation]
 print("Timing Accuracy", "mean:", np.mean(timing_plot), "std:", np.std(timing_plot))
 
 plt.hist(timing_plot, bins=100)
+plt.xlabel("Time Difference (s)")
+plt.ylabel("Count")
 plt.show()

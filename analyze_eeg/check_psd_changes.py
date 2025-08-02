@@ -4,6 +4,7 @@ import mne
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.stats import ttest_rel
 from tqdm import tqdm
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
@@ -25,7 +26,7 @@ freqs = []
 fmin, fmax = 0.5, 20
 pmin, pmax = -7.5, 20
 
-use_cache = False
+use_cache = True
 cache_folder = "data"
 if not os.path.exists(cache_folder):
     os.makedirs(cache_folder)
@@ -94,6 +95,47 @@ else:
     std_last = last_stack.std(axis=0) / np.sqrt(last_stack.shape[0] - 1)
     freqs = np.linspace(fmin, fmax, len(mean_last))
 
+# Define frequency range: 8.0–14.0 Hz
+fmin_band = 8.0
+fmax_band = 14.0
+freq_mask = (freqs >= fmin_band) & (freqs <= fmax_band)
+
+# Average power within 8–14 Hz for each participant
+power_first_avg = first_stack[:, freq_mask].mean(axis=1)
+power_last_avg = last_stack[:, freq_mask].mean(axis=1)
+
+# Paired t-test on averaged power
+t_stat, p_value = ttest_rel(power_first_avg, power_last_avg)
+# Report p-value
+print(f"Paired t-test at {fmin_band}-{fmax_band} Hz: t = {t_stat:.3f}, p = {p_value:.4f}")
+
+
+def add_significance_annotation(ax, x1, x2, y1, y2, h, p_val, text_offset=0.02):
+    """
+    Draws significance bars with stars between x1 and x2 on ax at height y.
+    h: height of the vertical bar.
+    """
+    # Determine significance stars
+    if p_val < 0.00001:
+        stars = f'p < 0.00001 (****) '
+    elif p_val < 0.0001:
+        stars = f'p < 0.0001 (****)'
+    elif p_val < 0.001:
+        stars = f'p < 0.001 (***)'
+    elif p_val < 0.01:
+        stars = f'p = {p_val:.3f} (**)'
+    elif p_val < 0.05:
+        stars = f'p = {p_val:.3f} (*)'
+    else:
+        stars = '(n.s.)'
+
+    # Draw horizontal line
+    ax.plot([x1, x1, x2, x2, x1], [y1, max(y1, y2) + h, max(y1, y2) + h, y2, y1], color='black', linewidth=1.5)
+    # Add stars text
+    ax.text((x1 + x2) * 0.5, max(y1, y2) + h + text_offset, stars, font="Arial",
+            ha='center', va='bottom', color='black', fontsize=12)
+
+
 # Plot
 plt.figure(figsize=(8, 5))
 
@@ -122,6 +164,11 @@ custom_legend = [
 ax = plt.gca()
 ax.spines['right'].set_visible(False)
 ax.spines['top'].set_visible(False)
+
+y1 = max(first_stack[:, np.argmin(np.abs(freqs - fmin_band))].mean(), last_stack[:, np.argmin(np.abs(freqs - fmin_band))].mean())
+y2 = max(first_stack[:, np.argmin(np.abs(freqs - fmax_band))].mean(), last_stack[:, np.argmin(np.abs(freqs - fmax_band))].mean())
+
+add_significance_annotation(ax=ax, x1=fmin_band, x2=fmax_band, y1=-6, y2=-6, h=8, p_val=p_value, text_offset=0.4)
 
 plt.tight_layout()
 
