@@ -1,4 +1,4 @@
-# SENSE-42: A Multimodal HCI Dataset from a Simulated Environment for Neurocognitive State Evaluation
+# HCI-SENSE-42: A multimodal Human-Computer Interaction dataset *from Simulated Environment* for Neurocognitive User State Evaluation
 
 SENSE-42 is a publicly available, multimodal dataset designed to support the study of user state monitoring during extended computer interaction sessions via neurocognitive, physiological and behavioural responses. Combining high-resolution neurophysiological recordings with behavioral and subjective data, this dataset enables research on the alternations of attention, mental/physical fatigue, cognitive workload, and related subjective indices at a very early stage.
 
