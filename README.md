@@ -6,7 +6,7 @@ This repository contains the [source code of the experiment](https://github.com/
 
 The project includes both the raw dataset (available via [Synapse](https://www.synapse.org/Synapse:syn68713182/)) and the analysis codebase (available on [GitHub](https://github.com/Catherine9811/HCI-SENSE-42/), WIP) for replicability and reuse.
 
-![Experiment Information](https://github.com/Catherine9811/HCI-SENSE-42/blob/master/assets/experiment_flow.jpg)
+![Experiment Information](https://github.com/Catherine9811/HCI-SENSE-42/blob/master/assets/experiment_flow_new.jpg)
 
 
 ## Dataset Description
