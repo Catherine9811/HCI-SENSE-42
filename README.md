@@ -1,4 +1,4 @@
-# SENSE-42: A Multimodal HCI Dataset from a Simulated Environment for Neurocognitive State Evaluation
+# HCI-SENSE-42: A multimodal Human-Computer Interaction dataset *from Simulated Environment* for Neurocognitive User State Evaluation
 
 SENSE-42 is a publicly available, multimodal dataset designed to support the study of user state monitoring during extended computer interaction sessions via neurocognitive, physiological and behavioural responses. Combining high-resolution neurophysiological recordings with behavioral and subjective data, this dataset enables research on the alternations of attention, mental/physical fatigue, cognitive workload, and related subjective indices at a very early stage.
 
@@ -6,7 +6,7 @@ This repository contains the [source code of the experiment](https://github.com/
 
 The project includes both the raw dataset (available via [Synapse](https://www.synapse.org/Synapse:syn68713182/)) and the analysis codebase (available on [GitHub](https://github.com/Catherine9811/HCI-SENSE-42/), WIP) for replicability and reuse.
 
-![Experiment Information](https://github.com/Catherine9811/HCI-SENSE-42/blob/master/assets/experiment_flow.jpg)
+![Experiment Information](https://github.com/Catherine9811/HCI-SENSE-42/blob/master/assets/experiment_flow_new.jpg)
 
 
 ## Dataset Description
