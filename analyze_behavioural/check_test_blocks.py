@@ -11,7 +11,7 @@ from data_definition import psydat_files
 num_trials = []
 len_trials = []
 num_styles = {}
-for file_path in tqdm(psydat_files):
+for i, file_path in tqdm(enumerate(psydat_files)):
     parser = DataParser(f"../data/{file_path}")
     start_key = "style_randomizer"
     end_key = "loop_end"
@@ -22,8 +22,10 @@ for file_path in tqdm(psydat_files):
         if 'trials.thisN' in entry:
             style = entry["operating_system_style"]
             if style not in num_styles:
-                num_styles[style] = 0
-            num_styles[style] += 1
+                num_styles[style] = []
+            if len(num_styles[style]) <= i:
+                num_styles[style].append(0)
+            num_styles[style][i] += 1
     if len(trial_starts) != len(trial_ends):
         continue
 
@@ -36,4 +38,4 @@ for file_path in tqdm(psydat_files):
 print("Number of Trials", np.mean(num_trials), np.std(num_trials))
 print("Length of Trials", np.mean(len_trials), np.std(len_trials))
 for style, count in num_styles.items():
-    print(style, count)
+    print(style, np.mean(count), np.std(count))

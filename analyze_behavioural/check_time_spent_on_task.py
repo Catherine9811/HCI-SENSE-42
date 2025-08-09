@@ -1,67 +1,41 @@
 import numpy as np
 import pickle
+from tqdm import tqdm
 import matplotlib.pyplot as plt
 import seaborn as sns
 import addcopyfighandler
-from collections import defaultdict
 from data_parser import DataParser
+from data_definition import psydat_files
 
-file_path = r"../data/007_explorer_2025-03-14_14h12.43.192.psydat"
-parser = DataParser(file_path)
-print(parser)
 
-# Create the plot
-plt.figure(figsize=(6, 4))
-# Apply paper-style settings
-sns.set_theme(style="whitegrid", context="paper")
+time_spent = {}
+for i, file_path in tqdm(enumerate(psydat_files)):
+    parser = DataParser(f"../data/{file_path}")
+    for task_name, task_key in [
+        ('Dragging Files', ['file_manager_dragging']),
+        ('Clicking Files', ['file_manager_opening']),
+        ('Closing Windows', 'window_close'),
+        ('Shadow Typing', 'mail_content'),
+        ('Side-by-side Typing', 'notes_repeat'),
+        ('Browser', ['browser_navigation', 'browser_content']),
+        ('Empty Trash Bin', ['trash_bin_select', 'trash_bin_confirm']),
+        ('Opening Application', ['mail_notification', 'file_manager_homescreen', 'trash_bin_homescreen', 'notes_homescreen', 'browser_homescreen'])
+    ]:
+        if task_name not in time_spent:
+            time_spent[task_name] = []
+        if isinstance(task_key, str):
+            trials = parser[task_key]
+            for trial in trials:
+                time_spent[task_name].append(trial[f"{task_key}.stopped"] - trial[f"{task_key}.started"])
+        else:
+            trial_group = {}
+            for sub_key in task_key:
+                trials = parser[sub_key]
+                for trial in trials:
+                    if trial["trials.thisN"] not in trial_group:
+                        trial_group[trial["trials.thisN"]] = 0
+                    trial_group[trial["trials.thisN"]] += trial[f"{sub_key}.stopped"] - trial[f"{sub_key}.started"]
+            time_spent[task_name].extend(list(trial_group.values()))
 
-for task_name, task_key in [
-    ('Dragging Files', 'file_manager_dragging'),
-    ('Clicking Files', 'file_manager_opening'),
-    ('Closing Windows', 'window_close'),
-    ('Mail Notification', 'mail_notification'),
-    ('Confirm Button', 'trash_bin_confirm'),
-    ('Select Files', 'trash_bin_select')
-]:
-    typing_task = parser[task_key]
-
-    # Extracting values for plotting
-    x_values = [entry[f"{task_key}.started"] for entry in typing_task]
-    y_values = [entry[f"{task_key}.stopped"] - entry[f"{task_key}.started"] for entry in typing_task]
-    g_values = [entry[f"trials.thisN"] for entry in typing_task]
-
-    # Group data
-    grouped_x = defaultdict(list)
-    grouped_y = defaultdict(list)
-
-    for g, x, y in zip(g_values, x_values, y_values):
-        grouped_x[g].append(x)
-        grouped_y[g].append(y)
-
-    # Compute mean and standard deviation
-    x_means = []
-    x_errors = []
-    y_means = []
-    y_errors = []
-    g_unique = sorted(grouped_x.keys())  # Unique sorted group values
-
-    for g in g_unique:
-        x_means.append(np.mean(grouped_x[g]))
-        x_errors.append(np.std(grouped_x[g]))
-        y_means.append(np.mean(grouped_y[g]))
-        y_errors.append(np.std(grouped_y[g]))
-
-    # Plot error bars
-    plt.errorbar(x_means, y_means, yerr=y_errors, fmt='o', capsize=5, label=task_name,
-                 # xerr=x_errors
-                 )
-
-# Labels and title
-plt.xlabel("Time (seconds)")
-plt.ylabel("Time Spent (seconds)")
-plt.title("Time Used in Clicking Tasks Over Time")
-plt.legend()
-
-# Show the plot
-plt.show()
-
+for task, count in time_spent.items():
+    print(task, np.mean(count), np.std(count))

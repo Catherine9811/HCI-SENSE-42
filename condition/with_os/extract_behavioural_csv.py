@@ -398,6 +398,51 @@ class MouseCloseToToolbarNavigationSpeedExtractor(UsingOperatingSystemMode):
         return x_values, y_values
 
 
+class MouseMovingToToolbarDurationExtractor(UsingOperatingSystemMode):
+    name = "mouse_moving_to_toolbar_duration"
+
+    def process(self, parser):
+        task_key = 'window_close_mouse.started'
+        typing_task = parser[task_key]
+        typing_task = [entry for entry in typing_task if entry['window_close_target_name'] == 'Close']
+
+        x_values = self.get_condition(parser, typing_task)
+        y_values = []
+
+        for entry in typing_task:
+            candidates = [key for key in entry.keys()
+                          if key.endswith(f".{task_key.replace('started', 'time')}") and len(entry[key]) > 0]
+            assert candidates, f"No matching keys found for entry: {entry}"
+            key = candidates[-1]
+
+            x = np.array(entry[key.replace(".time", ".x")])
+            y = np.array(entry[key.replace(".time", ".y")])
+            t = np.array(entry[key])
+
+            if len(x) < 2:
+                y_values.append(0)
+                continue
+
+            # Distance to final point
+            dx = x - x[-1]
+            dy = y - y[-1]
+            distances = np.hypot(dx, dy)
+
+            # Mask for points within 0.25 distance of the final point
+            mask = distances <= 0.25
+
+            # Ensure at least two points remain
+            if np.sum(mask) < 2:
+                y_values.append(0)
+                continue
+
+            tf = t[mask]
+
+            y_values.append(tf.min())
+
+        return x_values, y_values
+
+
 class MouseUnintendedClicksBase(UsingOperatingSystemMode):
     name = "mouse_unintended_clicks_base"
     task_key = ""
@@ -789,6 +834,7 @@ if __name__ == '__main__':
         MouseOpenFileManagerUnintendedClicksExtractor(),
         MouseOpenTrashBinUnintendedClicksExtractor(),
         MouseOpenNotificationUnintendedClicksExtractor(),
+        MouseMovingToToolbarDurationExtractor()
     ]
 
     enrollment = os.path.join("..", "..", "data", "participant_enrollment.csv")
