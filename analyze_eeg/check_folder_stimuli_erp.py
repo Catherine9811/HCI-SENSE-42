@@ -21,14 +21,14 @@ tmin, tmax = -0.1, 0.5  # ERP window
 xmin, xmax = -0.1, 0.5
 use_cache = True
 cache_folder = "data"
-cache_file = os.path.join(cache_folder, f"erp_event{event_id}_{tmin}s-{tmax}s.npy")
-times_file = os.path.join(cache_folder, "erp_times.npy")
+cache_file = os.path.join(cache_folder, f"erp_event{event_id}_{tmin}s-{tmax}s_all_participants.npy")
+times_file = os.path.join(cache_folder, "erp_times_all_participants.npy")
 events_folder = os.path.join("data", "events")
 
 if not os.path.exists(cache_folder):
     os.makedirs(cache_folder)
 
-participants = [2, 6, 8, 19, 25, 26, 29, 30, 31, 33, 34, 39, 40, 42]
+participants = range(1, 43)  # [2, 6, 8, 19, 25, 26, 29, 30, 31, 33, 34, 39, 40, 42]
 # participants = participants[7:8]
 if not use_cache or not os.path.exists(cache_file) or not os.path.exists(times_file):
     erp_list = []
@@ -37,7 +37,7 @@ if not use_cache or not os.path.exists(cache_file) or not os.path.exists(times_f
     for participant_id in tqdm(participants):
         # Load EEG
         raw = mne.io.read_raw_eeglab(
-            rf"D:\HCI PROCESSED DATA\AutomagicCleanedEEGLab\P{participant_id:03d}.set",
+            rf"D:\HCI PROCESSED DATA\CleanedEEGLab\P{participant_id:03d}.set",
             preload=True, eog=["REF"]
         )
         raw.set_eeg_reference("average")

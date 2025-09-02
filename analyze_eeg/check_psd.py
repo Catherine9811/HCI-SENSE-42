@@ -20,7 +20,7 @@ fmin, fmax = 0.5, 20
 pmin, pmax = -7.5, 20
 use_cache = True
 cache_folder = "data"
-cache_file = os.path.join(cache_folder, "psd_all.npy")
+cache_file = os.path.join(cache_folder, "psd_all_participants.npy")
 
 if not os.path.exists(cache_folder):
     os.makedirs(cache_folder)
@@ -31,11 +31,11 @@ if not use_cache or not os.path.exists(cache_file):
     freqs = None
 
     for participant_id in tqdm(range(1, 43)):
-        if participant_id not in [2, 6, 8, 19, 25, 26, 29, 30, 31, 33, 34, 39, 40, 42]:
-            continue
+        # if participant_id not in [2, 6, 8, 19, 25, 26, 29, 30, 31, 33, 34, 39, 40, 42]:
+        #     continue
 
         raw = mne.io.read_raw_eeglab(
-            rf"D:\HCI PROCESSED DATA\AutomagicCleanedEEGLab\P{participant_id:03d}.set",
+            rf"D:\HCI PROCESSED DATA\CleanedEEGLab\P{participant_id:03d}.set",
             preload=True, eog=["REF"]
         )
 
