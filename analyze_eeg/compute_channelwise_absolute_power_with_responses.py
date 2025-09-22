@@ -51,49 +51,43 @@ variables = (
     # {
     #     "name": "All",
     #     "field": ("[minute * 60 for minute in range(len(everything))]", "everything"),
-    #     "z": 5
     # },
     # {
     #     "name": "Gamma",
     #     "field": ("[minute * 60 for minute in range(len(gamma))]", "gamma"),
-    #     "z": 5
     # },
 
     {
         "name": "Delta",
         "field": ("[minute * 60 for minute in range(len(delta))]", "delta"),
-        "z": 4
     },
     {
         "name": "Theta",
         "field": ("[minute * 60 for minute in range(len(theta))]", "theta"),
-        "z": 5
     },
     {
         "name": "Alpha",
         "field": ("[minute * 60 for minute in range(len(alpha))]", "alpha"),
-        "z": 5
     },
     {
         "name": "Beta",
         "field": ("[minute * 60 for minute in range(len(beta))]", "beta"),
-        "z": 5
     },
 )
 
-# predictor = {
-#     "name": "Sleepiness Score",
-#     "type": "sleepiness",
-#     "max": 9,
-#     "field": ("response_times", "response_value"),
-# }
-
 predictor = {
-    "name": "Attentiveness Score",
-    "type": "attentiveness",
-    "max": 7,
+    "name": "Sleepiness Score",
+    "type": "sleepiness",
+    "max": 9,
     "field": ("response_times", "response_value"),
 }
+
+# predictor = {
+#     "name": "Attentiveness Score",
+#     "type": "attentiveness",
+#     "max": 7,
+#     "field": ("response_times", "response_value"),
+# }
 
 # predictor = {
 #     "name": "Performance Score",
@@ -156,7 +150,6 @@ for participant_index, participant_id in tqdm(enumerate(range(2, 43))):
     for variable in variables:
         variable_name_x = variable["name"]
         variable_field_x = variable["field"]
-        variable_z_x = variable["z"]
         full_variable_x = all_variables[variable_name_x]["value"]
         full_variable_y = all_variables[variable_name_x]["response"]
         full_variable_p = all_variables[variable_name_x]["participant_id"]

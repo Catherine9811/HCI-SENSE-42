@@ -34,7 +34,7 @@ time_resolution = 60.0
 for participant_id in (bar := tqdm(participants)):
     bar.set_description(f"{participant_id}")
     # Load the .set file
-    eeglab_file = rf'D:\HCI PROCESSED DATA\AutomagicCleanedEEGLab\P{participant_id:03d}.set'
+    eeglab_file = rf'D:\HCI PROCESSED DATA\CleanedEEGLab\P{participant_id:03d}.set'
     raw = mne.io.read_raw_eeglab(eeglab_file, preload=True, verbose="WARNING")
     raw = raw.set_eeg_reference("average")
     psd_dict = compute_eeg_power_band(raw, fmin=0.0, fmax=100.0, tres=time_resolution)

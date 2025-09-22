@@ -10,6 +10,9 @@ import mne
 from scipy import stats
 
 import statsmodels.api as sm
+import warnings
+from statsmodels.tools.sm_exceptions import ConvergenceWarning
+warnings.simplefilter('ignore', ConvergenceWarning)
 
 import seaborn as sns
 from mne.viz import iter_topography
@@ -138,22 +141,18 @@ variables = (
     {
         "name": "Delta",
         "field": ("[minute * 60 for minute in range(len(delta))]", "delta"),
-        "z": 4
     },
     {
         "name": "Theta",
         "field": ("[minute * 60 for minute in range(len(theta))]", "theta"),
-        "z": 5
     },
     {
         "name": "Alpha",
         "field": ("[minute * 60 for minute in range(len(alpha))]", "alpha"),
-        "z": 5
     },
     {
         "name": "Beta",
         "field": ("[minute * 60 for minute in range(len(beta))]", "beta"),
-        "z": 5
     },
 )
 
@@ -216,10 +215,56 @@ def linear_regression_obsolete(*args, participant_ids=None):
             channel_values.extend(arg[:, i])
 
         channel_values = np.array(channel_values)
+        channel_values = 10 * np.log10(channel_values) + 120
         x = sm.add_constant(class_values)
         model = sm.OLS(channel_values, x)
         result = model.fit()
         outcome_values[i] = result.fvalue # result.tvalues[1] # result.params[1] * 1e14 # result.fvalue
+    return outcome_values
+
+
+def linear_regression_per_subject(*args, participant_ids=None):
+    """
+    Runs an OLS regression for each participant separately and then averages F-values across participants.
+    Args:
+        *args: list of arrays [n_samples, n_channels] for each group
+        participant_ids: list of subject IDs aligned with samples in args
+    Returns:
+        outcome_values: array of average F-values across participants for each channel
+    """
+    unique_subjects = np.unique(np.concatenate(participant_ids))
+    n_channels = len(channels)
+    outcome_values = np.zeros(n_channels)
+
+    # Loop over channels
+    for ch in range(n_channels):
+        fvals = []
+
+        # Loop over participants
+        for subj in unique_subjects:
+            subj_data = []
+            subj_groups = []
+
+            # Collect data for this participant across groups
+            for group_idx, (group_data, subj_ids) in enumerate(zip(args, participant_ids)):
+                mask = np.array(subj_ids) == subj
+                if np.any(mask):
+                    subj_data.extend(group_data[mask, ch])
+                    subj_groups.extend([group_idx + 1] * np.sum(mask))
+
+            if len(subj_data) > 1 and len(np.unique(subj_groups)) > 1:
+                y = 10 * np.log10(np.array(subj_data)) + 120
+                X = sm.add_constant(np.array(subj_groups))
+                model = sm.OLS(y, X)
+                try:
+                    result = model.fit()
+                    fvals.append(result.fvalue)
+                except Exception:
+                    continue
+
+        # Average F across participants for this channel
+        outcome_values[ch] = np.mean(fvals) if len(fvals) > 0 else 0.0
+
     return outcome_values
 
 
@@ -263,7 +308,48 @@ def linear_regression(*args, participant_ids=None):
     return outcome_values
 
 
-def linear_regression_get_beta(*args):
+def linear_regression_get_beta(*args, participant_ids=None):
+    n_classes = len(args)
+    n_samples_per_class = np.array([len(a) for a in args])
+    class_values = []
+    subject_ids = []
+
+    # Expand group labels and subject ids
+    for class_idx, (group_data, subj_ids) in enumerate(zip(args, participant_ids)):
+        class_values.extend([class_idx + 1] * len(group_data))
+        subject_ids.extend(subj_ids)
+
+    class_values = np.array(class_values)
+    subject_ids = np.array(subject_ids)
+
+    outcome_values = np.zeros((len(channels)))
+
+    for ch, ch_name in enumerate(channels):
+        channel_data = []
+        for group in args:
+            channel_data.extend(group[:, ch])
+        channel_data = np.array(channel_data)
+
+        df = pd.DataFrame({
+            'signal': 10 * np.log10(channel_data) + 120,
+            'group': class_values,
+            'subject': subject_ids
+        })
+
+        try:
+            model = sm.MixedLM.from_formula("signal ~ group", groups="subject", data=df)
+            result = model.fit()
+            # Get slope (beta coefficient) for 'group'
+            beta = result.params['group']  # <-- this is the slope estimate
+            outcome_values[ch] = beta
+        except Exception as e:
+            outcome_values[ch] = 0  # fallback on failure
+            print(f"Warning: channel {ch} failed to fit mixed model. Error: {e}")
+
+    return outcome_values
+
+
+def linear_regression_get_beta_obsolete(*args, participant_ids=None):
     n_classes = len(args)
     n_samples_per_class = np.array([len(a) for a in args])
     n_samples = np.sum(n_samples_per_class)
@@ -286,22 +372,23 @@ def linear_regression_get_beta(*args):
     return outcome_values
 
 
-pval = 0.001  # arbitrary
+pval = 0.05  # arbitrary
 dfn = 9 - 1  # degrees of freedom numerator
-dfd = 26 * 14 - 9  # degrees of freedom denominator
+dfd = 41 - 9  # degrees of freedom denominator
 thresh = stats.f.ppf(1 - pval, dfn=dfn, dfd=dfd)
 print(thresh)
 
 for variable in tqdm(variables):
     variable_name_x = variable["name"]
     variable_field_x = variable["field"]
-    variable_z_x = variable["z"]
     full_variable_x = []
     full_variable_y = []
     full_variable_p = []
     for participant_index, participant_id in enumerate(range(2, 43)):
         if participant_id not in [2, 6, 8, 19, 25, 26, 29, 30, 31, 33, 34, 39, 40, 42]:
             continue
+        # if participant_id not in [2, 6, 8, 19, 25]:
+        #     continue
         # mne.viz.plot_sensors(info, ch_type='eeg', axes=plt.gca(), show_names=False, pointsize=0)
         conditioned_files = [os.path.join(event_path, name) for name in os.listdir(event_path)
                              if name == f"P{participant_id:03d}.txt"]
@@ -364,20 +451,23 @@ for variable in tqdm(variables):
 
     F_obs, clusters, cluster_pv, H0 = \
         mne.stats.permutation_cluster_test(X,
-                                           stat_fun=lambda *args: linear_regression_obsolete(*args, participant_ids=P),
+                                           stat_fun=lambda *args: linear_regression_per_subject (*args, participant_ids=P),
                                            threshold=thresh, adjacency=mne.channels.find_ch_adjacency(info, 'eeg')[0], out_type='mask')
     print(F_obs, clusters, cluster_pv)
-    F_obs = linear_regression_get_beta(*X)
+    F_obs = linear_regression_get_beta(*X, participant_ids=P)
     cluster_test_result[variable_name_x] = (F_obs, clusters, cluster_pv)
 
 total_clusters = 1
 vmin = np.inf
 vmax = 0
-cmap = "OrRd"
+cmap = "coolwarm"
 for eeg_band in cluster_test_result:
     total_clusters += len(cluster_test_result[eeg_band][1])
     vmin = min(vmin, np.min(cluster_test_result[eeg_band][0]))
     vmax = max(vmax, np.max(cluster_test_result[eeg_band][0]))
+maxval = max(abs(vmin), abs(vmax))
+vmin = -maxval
+vmax = maxval
 # cmap = remappedColorMap(cmap, 0, abs(vmin / (vmax - vmin)), 1.0)
 fig, ax = plt.subplots(1, total_clusters, width_ratios=[30] * (total_clusters - 1) + [1])
 if total_clusters == 1:
