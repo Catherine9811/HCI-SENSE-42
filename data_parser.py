@@ -1,3 +1,5 @@
+import os.path
+
 from psychopy.misc import fromFile
 from collections import defaultdict
 import re
@@ -6,6 +8,12 @@ import re
 class DataParser:
     def __init__(self, location):
         self.data = fromFile(location)
+        self.location = location
+
+    def id(self):
+        if len(self.data.extraInfo['participant']) == 0:
+            return os.path.basename(self.location).split("_")[0]
+        return self.data.extraInfo['participant']
 
     def __str__(self):
         return f"""
