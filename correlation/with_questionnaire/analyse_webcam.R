@@ -3,23 +3,21 @@ library(lmerTest)
 library(lattice)
 library(ggplot2)
 library(sjPlot)
-library(dplyr)
 
 outcome_variable <- "sleepiness"
 
 # Read the data from the CSV file
-data <- read.csv(paste("processed_data/42-", outcome_variable, "-multimodal.csv", sep=""), sep=",")
+data <- read.csv(paste("processed_data/webcam/42-", outcome_variable, ".csv", sep=""), sep=",")
 
-# data <- filter(data, participant %in% c(1, 2, 6, 8, 19, 25, 26, 29, 30, 31, 33, 34, 39, 40, 42))
 data[[outcome_variable]] <- as.numeric(data[[outcome_variable]])
-output_file <- paste("processed_data/42-", outcome_variable, "-multimodal-output.csv", sep="")
+
+output_file <- paste("processed_data/webcam/42-", outcome_variable, "-output.csv", sep="")
 
 # Define the predictors
-# Columns to exclude
-exclude_cols <- c("participant", outcome_variable)
-
-# Get predictor names dynamically
-predictors <- setdiff(names(data), exclude_cols)
+predictors <- c(
+  "head_pose_variation_mean", "blink_times_mean", "look_down_times_mean",
+  "time"
+)
 
 # Initialize an empty list to store results
 results <- data.frame(
