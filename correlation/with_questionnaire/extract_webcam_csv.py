@@ -207,8 +207,8 @@ class LookDownTimesExtractor:
         return x_values, y_values
 
 
-class HeadPoseVariationExtractor:
-    name = "head_pose_variation"
+class HeadPoseMovementExtractor:
+    name = "head_pose_movement"
     base_path = os.path.join("..", "..", "data", "Webcam")
 
     def process(self, parser):
@@ -279,9 +279,202 @@ class HeadPoseVariationExtractor:
         return x_values, y_values
 
 
+class HeadPoseVariationExtractor:
+    name = "head_pose_variation"
+    base_path = os.path.join("..", "..", "data", "Webcam")
+
+    def process(self, parser):
+        x_values = []
+        y_values = []
+        camera_name = "camera.filename"
+        camera_task = parser[camera_name]
+        # Extracting values for plotting
+        for entry in camera_task:
+            key_name = "style_randomizer"
+            file_name = entry[camera_name]
+            if f"{key_name}.started" in entry:
+                _, video_filename = os.path.split(file_name)
+                csv_filename = video_filename.replace(".mp4", ".csv")
+                csv_path = os.path.join(self.base_path, csv_filename)
+                if os.path.exists(csv_path):
+                    csv = pd.read_csv(csv_path)
+                    # ensure columns exist (robust)
+                    for col in ("pitch", "yaw", "roll"):
+                        if col not in csv.columns:
+                            raise ValueError(f"Missing required column '{col}' in {csv_path}")
+
+                    # drop rows with NaN in the Euler columns
+                    sub = csv[["pitch", "yaw", "roll"]].dropna().to_numpy()
+                    pitch = sub[:, 0]
+                    yaw = sub[:, 1]
+                    roll = sub[:, 2]
+
+                    # 1) forward vectors (ignores roll) + spherical variance
+                    # fvecs = forward_vector_from_euler(pitch, yaw)  # shape (N,3)
+                    # mean_vec = np.mean(fvecs, axis=0)
+                    # R = np.linalg.norm(mean_vec) / 1.0  # resultant length (0..1) since vectors are unit
+                    # spherical_variance = 1.0 - R
+
+                    # 2) angular steps between successive forward vectors (vector method)
+                    # dots = np.clip(np.sum(fvecs[1:] * fvecs[:-1], axis=1), -1.0, 1.0)
+                    # ang_steps_vec = np.arccos(dots)  # radians
+
+                    # mean_ang_vec = np.mean(ang_steps_vec)
+                    # var_ang_vec = np.var(ang_steps_vec)
+                    # total_rot_vec = np.sum(ang_steps_vec)
+                    # max_step_vec = np.max(ang_steps_vec)
+                    # rms_ang_vec = np.sqrt(np.mean(ang_steps_vec ** 2))
+
+                    # 3) quaternion method (accounts for roll properly)
+                    quats = euler_deg_to_quat(roll, pitch, yaw)  # (w,x,y,z)
+                    ang_steps_quat = quat_angle_between(quats[1:], quats[:-1])  # radians
+                    std_ang_quat = np.std(ang_steps_quat)
+                    # var_ang_quat = np.var(ang_steps_quat)
+                    # total_rot_quat = np.sum(ang_steps_quat)
+                    # max_step_quat = np.max(ang_steps_quat)
+                    # rms_ang_quat = np.sqrt(np.mean(ang_steps_quat ** 2))
+
+                    # 4) jitter (magnitude of derivative of forward vector)
+                    # dvec = fvecs[1:] - fvecs[:-1]
+                    # jitter_mag = np.linalg.norm(dvec, axis=1)
+                    # mean_jitter = np.mean(jitter_mag)
+                    # var_jitter = np.var(jitter_mag)
+                    # rms_jitter = np.sqrt(np.mean(jitter_mag ** 2))
+
+                    # --- Append a set of meaningful metrics to x_values/y_values ---
+                    # Use degrees for angular values (more interpretable)
+                    rad2deg = 180.0 / np.pi
+                    x_values.append(entry[f"{key_name}.started"])
+                    y_values.append(std_ang_quat * rad2deg)
+                else:
+                    print(f"{csv_path} not found!")
+        return x_values, y_values
+
+
+class HeadRollVariationExtractor:
+    name = "head_roll_variation"
+    base_path = os.path.join("..", "..", "data", "Webcam")
+
+    def process(self, parser):
+        x_values = []
+        y_values = []
+        camera_name = "camera.filename"
+        camera_task = parser[camera_name]
+        # Extracting values for plotting
+        for entry in camera_task:
+            key_name = "style_randomizer"
+            file_name = entry[camera_name]
+            if f"{key_name}.started" in entry:
+                _, video_filename = os.path.split(file_name)
+                csv_filename = video_filename.replace(".mp4", ".csv")
+                csv_path = os.path.join(self.base_path, csv_filename)
+                if os.path.exists(csv_path):
+                    csv = pd.read_csv(csv_path)
+                    # ensure columns exist (robust)
+                    for col in ("pitch", "yaw", "roll"):
+                        if col not in csv.columns:
+                            raise ValueError(f"Missing required column '{col}' in {csv_path}")
+
+                    # drop rows with NaN in the Euler columns
+                    sub = csv[["pitch", "yaw", "roll"]].dropna().to_numpy()
+                    pitch = sub[:, 0]
+                    yaw = sub[:, 1]
+                    roll = sub[:, 2]
+
+                    std_ang_roll = np.std(roll)
+
+                    x_values.append(entry[f"{key_name}.started"])
+                    y_values.append(std_ang_roll)
+                else:
+                    print(f"{csv_path} not found!")
+        return x_values, y_values
+
+
+class HeadPitchVariationExtractor:
+    name = "head_pitch_variation"
+    base_path = os.path.join("..", "..", "data", "Webcam")
+
+    def process(self, parser):
+        x_values = []
+        y_values = []
+        camera_name = "camera.filename"
+        camera_task = parser[camera_name]
+        # Extracting values for plotting
+        for entry in camera_task:
+            key_name = "style_randomizer"
+            file_name = entry[camera_name]
+            if f"{key_name}.started" in entry:
+                _, video_filename = os.path.split(file_name)
+                csv_filename = video_filename.replace(".mp4", ".csv")
+                csv_path = os.path.join(self.base_path, csv_filename)
+                if os.path.exists(csv_path):
+                    csv = pd.read_csv(csv_path)
+                    # ensure columns exist (robust)
+                    for col in ("pitch", "yaw", "roll"):
+                        if col not in csv.columns:
+                            raise ValueError(f"Missing required column '{col}' in {csv_path}")
+
+                    # drop rows with NaN in the Euler columns
+                    sub = csv[["pitch", "yaw", "roll"]].dropna().to_numpy()
+                    pitch = sub[:, 0]
+                    yaw = sub[:, 1]
+                    roll = sub[:, 2]
+
+                    std_ang_pitch = np.std(pitch)
+
+                    x_values.append(entry[f"{key_name}.started"])
+                    y_values.append(std_ang_pitch)
+                else:
+                    print(f"{csv_path} not found!")
+        return x_values, y_values
+
+
+class HeadYawVariationExtractor:
+    name = "head_yaw_variation"
+    base_path = os.path.join("..", "..", "data", "Webcam")
+
+    def process(self, parser):
+        x_values = []
+        y_values = []
+        camera_name = "camera.filename"
+        camera_task = parser[camera_name]
+        # Extracting values for plotting
+        for entry in camera_task:
+            key_name = "style_randomizer"
+            file_name = entry[camera_name]
+            if f"{key_name}.started" in entry:
+                _, video_filename = os.path.split(file_name)
+                csv_filename = video_filename.replace(".mp4", ".csv")
+                csv_path = os.path.join(self.base_path, csv_filename)
+                if os.path.exists(csv_path):
+                    csv = pd.read_csv(csv_path)
+                    # ensure columns exist (robust)
+                    for col in ("pitch", "yaw", "roll"):
+                        if col not in csv.columns:
+                            raise ValueError(f"Missing required column '{col}' in {csv_path}")
+
+                    # drop rows with NaN in the Euler columns
+                    sub = csv[["pitch", "yaw", "roll"]].dropna().to_numpy()
+                    pitch = sub[:, 0]
+                    yaw = sub[:, 1]
+                    roll = sub[:, 2]
+
+                    std_ang_yaw = np.std(yaw)
+
+                    x_values.append(entry[f"{key_name}.started"])
+                    y_values.append(std_ang_yaw)
+                else:
+                    print(f"{csv_path} not found!")
+        return x_values, y_values
+
+
 if __name__ == '__main__':
     predictor_definitions = [
         HeadPoseVariationExtractor(),
+        HeadPoseMovementExtractor(),
+        HeadPitchVariationExtractor(),
+        HeadRollVariationExtractor(),
+        HeadYawVariationExtractor(),
         BlinkTimesExtractor(),
         LookDownTimesExtractor()
     ]

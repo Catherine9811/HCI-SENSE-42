@@ -15,6 +15,7 @@ output_file <- paste("processed_data/webcam/42-", outcome_variable, "-output.csv
 
 # Define the predictors
 predictors <- c(
+  "head_pose_movement_mean", "head_pitch_variation_mean", "head_roll_variation_mean", "head_yaw_variation_mean",
   "head_pose_variation_mean", "blink_times_mean", "look_down_times_mean",
   "time"
 )

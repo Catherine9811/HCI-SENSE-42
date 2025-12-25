@@ -45,6 +45,74 @@ merged_df.dropna(inplace=True)  # remove any rows with missing values
 # Drop duplicate column regardless, keeping 'key'
 merged_df.drop(columns=[f"{key}_dup"], inplace=True)
 
+# --- Load participant metadata CSV ---
+metadata_file = os.path.join("..", "..", "data", "participant_enrollment.csv")  # <-- update path if needed
+meta_df = pd.read_csv(metadata_file)
+
+
+# --- Clean column names ---
+def clean_column_name(col):
+    return (
+        col
+        .replace("/", "")
+        .replace("(", "")
+        .replace(")", "")
+        .replace(",", "")
+        .replace(".", "")
+        .replace(" ", "_")
+        .replace(":", "")
+        .replace("?", "")
+        .replace("-", "_")
+        .lower()
+    )
+
+
+meta_df.columns = [clean_column_name(c) for c in meta_df.columns]
+
+# --- Convert Participant ID to integer ---
+if "participant_id" not in meta_df.columns:
+    raise ValueError("Metadata CSV must contain 'Participant ID' column")
+
+meta_df["participant_id"] = meta_df["participant_id"].astype("int64")
+
+# --- Process 'select ALL that apply' columns ---
+select_cols = [c for c in meta_df.columns if "select_all_that_apply" in c or c.startswith("psqi_5")]
+
+for col in select_cols:
+    meta_df[col] = (
+        meta_df[col]
+        .fillna("")
+        .apply(
+            lambda x: 0 if len(x.strip()) == 0 else x.count(";") + 1
+        )
+    )
+
+# --- Drop excluded columns ---
+exclude_columns = [
+    "timestamp",
+    "allow_video_published_in_anonymized_form",
+    "allow_video_published_in_raw_form",
+    "allow_use_for_commercial_purposes",
+    # "ess_total"
+]
+
+meta_df.drop(
+    columns=[c for c in exclude_columns if c in meta_df.columns],
+    inplace=True,
+)
+
+# --- Merge metadata into main dataframe ---
+merged_df = pd.merge(
+    merged_df,
+    meta_df,
+    left_on="participant",
+    right_on="participant_id",
+    how="left",
+)
+
+# Remove duplicate participant_id column after merge
+merged_df.drop(columns=["participant_id"], inplace=True)
+
 merged_df.sort_values(by=key_columns, inplace=True)
 merged_df.to_csv(output_file, index=False)
 
