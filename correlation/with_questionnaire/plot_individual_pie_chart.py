@@ -27,13 +27,12 @@ data = pd.read_csv(input_file)
 
 # ---- Pie chart parameters ----
 color_dict = {
-    "Physiological (EXG)": "#1F78B4",
+    "Physiological (EEG,ECG)": "#1F78B4",
     "Physiological (Respiration)": "#33A1C9",
     "Behavioural (Webcam)": "#5CC8FF",
-    "Mouse Interaction": "#D55E00",
-    "Keyboard Interaction": "#E69F00",
+    "Behavioural (Mouse)": "#D55E00",
+    "Behavioural (Keyboard)": "#E69F00",
     "Individual Traits": "#98df8a",
-    "Computer Use Proficiency": "#2ca02c",
     "Quality of Sleep": "#006400",
     "Fixed Effect Shared Contribution": "#999999",
     "Random Effect Contribution": "#D9D9D9",
@@ -65,11 +64,14 @@ patches, texts, autotexts = plt.pie(
 #     autotext.set_fontsize(10)
 #     autotext.set_weight('bold')
 
-plt.title("Breakdown for Explained Variance of Sleepiness (KSS)", fontsize=12)
+# plt.title("Breakdown for Explained Variance of Sleepiness (KSS)", fontsize=12)
 
 # ---- Add legend ----
 
-plt.legend(patches, labels, title="Predictors", bbox_to_anchor=(1.05, 1), loc="upper left", fontsize=10, frameon=False)
+legend = plt.legend(patches, labels, title="Predictor Sensor Modality",
+                    bbox_to_anchor=(1.05, 1), loc="upper left", fontsize=10, frameon=False)
+legend._legend_box.align = "left"
+legend.get_title().set_ha("left")
 
 plt.tight_layout()
 plt.savefig("processed_data/sleepiness_individual_variance_pie.png", dpi=300)

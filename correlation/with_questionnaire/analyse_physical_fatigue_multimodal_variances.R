@@ -20,16 +20,48 @@ data[[outcome_variable]] <- as.numeric(data[[outcome_variable]])
 output_file <- paste("processed_data/42-", outcome_variable, "-multimodal-output.csv", sep="")
 
 # Predictor selection
-exclude_cols <- c("participant", outcome_variable)
+exclude_cols <- c("participant", outcome_variable, "initiation", "attentiveness", "tlx", "performance", "temporal_demand", "effort", "frustration", "mental_demand",
+                  "testing_time", "testing_order", "ess_total", "outside_temperature",
+                  "psqi_1_what_time_have_you_usually_gone_to_bed_at_night", 
+                  "psqi_2_how_long_has_it_usually_taken_you_to_fall_asleep_each_night",
+                  "psqi_3_what_time_have_you_usually_gotten_up_in_the_morning", 
+                  "psqi_4_how_many_hours_of_actual_sleep_did_you_get_at_night",
+                  "psqi_54_how_often_have_you_had_trouble_sleeping_because_three_or_more_times_a_week",
+                  "psqi_6_how_often_have_you_taken_medicine_to_help_you_sleep",
+                  "psqi_7_how_often_have_you_had_trouble_staying_awake_while_driving_eating_meals_or_engaging_in_social_activity",
+                  "psqi_8_how_much_of_a_problem_has_it_been_for_you_to_keep_up_enough_enthusiasm_to_get_things_done",
+                  "psqi_9_how_would_you_rate_your_sleep_quality_overall",
+                  "psqi_10_do_you_have_a_bed_partner_or_room_mate",
+                  "ess_1_situation_dozing_while_sitting_and_reading",
+                  "ess_2_situation_dozing_while_watching_tv",
+                  "ess_3_situation_dozing_while_sitting_inactive_in_a_public_place",
+                  "ess_4_situation_dozing_while_as_a_passenger_in_a_car_for_an_hour_without_a_break",
+                  "ess_5_situation_dozing_while_lying_down_to_rest_in_the_afternoon_when_circumstances_permit",
+                  "ess_6_situation_dozing_while_sitting_and_talking_to_someone",
+                  "ess_7_situation_dozing_while_sitting_quitely_after_a_lunch_without_alcohol",
+                  "ess_8_situation_dozing_while_in_a_car_while_stopped_for_a_few_minutes_in_the_traffic")
 predictors <- setdiff(names(data), exclude_cols)
 
 # ---- 1. Fit initial model with all predictors ----
 full_formula <- as.formula(
-  paste(outcome_variable, "~", paste(predictors, collapse = " + "), " + (1 | participant)")
+  paste(outcome_variable, "~", paste(predictors, collapse = " + "), " ")
 )
 
-full_model <- lmer(full_formula, data = data, REML = FALSE)
+full_model <- lm(full_formula, data = data)
+
+mf <- model.frame(full_formula, data=data)
+
+X_full <- model.matrix(full_formula, mf)
+
+qrX <- qr(X_full)
+
+bad_idx <- qrX$pivot[(qrX$rank + 1):ncol(X_full)]
+
+colnames(X_full)[bad_idx]
+
+
 summary(full_model)
+tab_model(full_model)
 print(full_model, correlation = TRUE)
 
 # ---- 2. Identify significant predictors ----

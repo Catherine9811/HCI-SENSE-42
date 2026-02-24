@@ -46,7 +46,7 @@ merged_df.dropna(inplace=True)  # remove any rows with missing values
 merged_df.drop(columns=[f"{key}_dup"], inplace=True)
 
 # --- Load participant metadata CSV ---
-metadata_file = os.path.join("..", "..", "data", "participant_enrollment.csv")  # <-- update path if needed
+metadata_file = os.path.join("..", "..", "data", "participant_enrollment_with_env.csv")  # <-- update path if needed
 meta_df = pd.read_csv(metadata_file)
 
 
@@ -112,6 +112,62 @@ merged_df = pd.merge(
 
 # Remove duplicate participant_id column after merge
 merged_df.drop(columns=["participant_id"], inplace=True)
+
+
+# --- Load and merge questionnaire data ---
+questionnaire_file = os.path.join("processed_data", "questionnaire", "42-questionnaires.csv")
+
+if os.path.exists(questionnaire_file):
+    q_df = pd.read_csv(questionnaire_file)
+
+    required_cols = ["name", "time", "value", "initiation", "participant"]
+    if not all(col in q_df.columns for col in required_cols):
+        raise ValueError(f"Questionnaire CSV must contain columns: {required_cols}")
+
+    # Convert key columns to integer
+    q_df["time"] = q_df["time"].astype("int64")
+    q_df["participant"] = q_df["participant"].astype("int64")
+
+    # --- Extract time ONLY from sleepiness rows ---
+    outcome_time = (
+        q_df[q_df["name"] == key]
+        [["participant", "initiation", "time"]]
+        .drop_duplicates()
+    )
+
+    # Pivot so each unique 'name' becomes a column
+    q_pivot = (
+        q_df.pivot_table(
+            index=["participant", "initiation"],
+            columns="name",
+            values="value",
+            aggfunc="first"
+        )
+        .reset_index()
+    )
+
+    # Flatten column index (in case pivot creates multiindex)
+    q_pivot.columns.name = None
+
+    # --- Merge sleepiness time back ---
+    q_pivot = pd.merge(
+        q_pivot,
+        outcome_time,
+        on=["participant", "initiation"],
+        how="left"
+    )
+
+    # Merge with main dataframe
+    merged_df = pd.merge(
+        merged_df,
+        q_pivot,
+        on=["participant", "time", key],
+        how="left"
+    )
+
+    print("✅ Questionnaire data merged successfully.")
+else:
+    print("⚠️ Questionnaire file not found — skipping merge.")
 
 merged_df.sort_values(by=key_columns, inplace=True)
 merged_df.to_csv(output_file, index=False)

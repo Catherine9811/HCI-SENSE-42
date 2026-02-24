@@ -121,6 +121,71 @@ class MouseDoubleClickDistanceExtractor:
         return x_values, y_values
 
 
+class MouseDoubleClickMovementExtractor:
+    name = "mouse_double_click_movement"
+
+    def process(self, parser):
+        task_key = 'stimuli_reaction_mouse_movement.started'
+        task = parser[task_key]
+        # Extracting values for plotting
+        x_values = [entry[task_key] for entry in task]
+        y_values = []
+        for entry in task:
+            leftButton = entry[task_key.replace(".started", ".leftButton")]
+            midButton = entry[task_key.replace(".started", ".midButton")]
+            rightButton = entry[task_key.replace(".started", ".rightButton")]
+            button = np.array(leftButton) + np.array(midButton) + np.array(rightButton)
+            last_pressed = True
+            last_clicked = 0
+            for i in reversed(range(len(button))):
+                if button[i] > 0 and last_pressed:
+                    continue
+                else:
+                    last_pressed = False
+                if button[i] > 0:
+                    last_clicked = i
+                    break
+            last_mouse_location_x = entry[task_key.replace(".started", ".x")][-1]
+            last_mouse_location_y = entry[task_key.replace(".started", ".y")][-1]
+            mouse_location_x = entry[task_key.replace(".started", ".x")][last_clicked]
+            mouse_location_y = entry[task_key.replace(".started", ".y")][last_clicked]
+            distance = np.linalg.norm(scale_mouse_measurement_to_screen_height(np.array([
+                mouse_location_x - last_mouse_location_x,
+                mouse_location_y - last_mouse_location_y
+            ])))
+            y_values.append(distance)
+        return x_values, y_values
+
+
+class MouseDoubleClickDurationExtractor:
+    name = "mouse_double_click_duration"
+
+    def process(self, parser):
+        task_key = 'stimuli_reaction_mouse_movement.started'
+        task = parser[task_key]
+        # Extracting values for plotting
+        x_values = [entry[task_key] for entry in task]
+        y_values = []
+        for entry in task:
+            leftButton = entry[task_key.replace(".started", ".leftButton")]
+            midButton = entry[task_key.replace(".started", ".midButton")]
+            rightButton = entry[task_key.replace(".started", ".rightButton")]
+            button = np.array(leftButton) + np.array(midButton) + np.array(rightButton)
+            last_pressed = True
+            last_clicked = 0
+            for i in reversed(range(len(button))):
+                if button[i] > 0 and last_pressed:
+                    continue
+                else:
+                    last_pressed = False
+                if button[i] > 0:
+                    last_clicked = i
+                    break
+            mouse_times = entry[task_key.replace(".started", ".time")]
+            y_values.append(np.abs(mouse_times[-1] - mouse_times[last_clicked]))
+        return x_values, y_values
+
+
 class MouseDragDistanceExtractor:
     name = "mouse_drag_distance"
 
@@ -803,6 +868,8 @@ class KeyboardPressedDurationExtractor:
 if __name__ == '__main__':
     predictor_definitions = [
         MouseDoubleClickDistanceExtractor(),
+        MouseDoubleClickDurationExtractor(),
+        MouseDoubleClickMovementExtractor(),
         MouseDragDistanceExtractor(),
         MouseDropDistanceExtractor(),
         MouseTaskbarNavigationEfficiencyExtractor(),
