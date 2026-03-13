@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 """
-Binary TLX prediction script using Gradient Boosting,
-based on per-participant percentile thresholds.
+Binary alertness prediction script using Gradient Boosting.
 
-TLX (Task Load Index) is calculated as:
-  tlx = temporal_demand + mental_demand + effort + frustration - performance
+Alertness is defined from participant-specific percentile thresholds on:
+  - TLX = temporal_demand + mental_demand + effort + frustration - performance
+  - sleepiness
 
-This script creates a binary target from TLX using within-participant
-percentile thresholds and runs cross-validation experiments.
+For each participant:
+  - Build tlx_binary and sleepiness_binary from lower/upper percentiles.
+  - alertness_binary = 1 only if tlx_binary==1 and sleepiness_binary==1
+  - alertness_binary = 0 if both tlx_binary==0 and sleepiness_binary==0
+  - otherwise alertness_binary stays NaN and is dropped before model training.
 """
 
 from pathlib import Path
@@ -35,25 +38,24 @@ from prediction.alertness.shared_config import (
 
 BASE_DIR = Path(__file__).resolve().parent
 
-ORIGINAL_TARGET_COL = "tlx"
-BINARY_TARGET_COL = "tlx_binary"
-PR_CURVE_WITHIN_PATH = BASE_DIR / "processed_data" / "tlx_gb_binary_pr_curve_within.png"
-PR_CURVE_CROSS_PATH = BASE_DIR / "processed_data" / "tlx_gb_binary_pr_curve_cross.png"
+TLX_COL = "tlx"
+SLEEPINESS_COL = "sleepiness"
+TLX_BINARY_COL = "tlx_binary"
+SLEEPINESS_BINARY_COL = "sleepiness_binary"
+BINARY_TARGET_COL = "alertness_binary"
+PR_CURVE_WITHIN_PATH = BASE_DIR / "processed_data" / "alertness_gb_binary_pr_curve_within.png"
+PR_CURVE_CROSS_PATH = BASE_DIR / "processed_data" / "alertness_gb_binary_pr_curve_cross.png"
 
 
 def load_data(path: Path) -> pd.DataFrame:
     """
-    Load data and calculate TLX (Task Load Index).
-    
-    TLX is calculated as: temporal_demand + mental_demand + effort + frustration - performance
+    Load data, validate required columns, and calculate TLX.
     """
     df = pd.read_csv(path)
-    
-    if GROUP_COL not in df.columns:
-        raise ValueError(f"Group column '{GROUP_COL}' not found in data.")
-    
-    # Required columns for TLX calculation
+
     required_cols = [
+        GROUP_COL,
+        SLEEPINESS_COL,
         "temporal_demand",
         "mental_demand",
         "effort",
@@ -62,45 +64,26 @@ def load_data(path: Path) -> pd.DataFrame:
     ]
     missing_cols = [col for col in required_cols if col not in df.columns]
     if missing_cols:
-        raise ValueError(
-            f"Required columns for TLX calculation not found in data: {missing_cols}"
-        )
-    
-    # Calculate TLX: temporal_demand + mental_demand + effort + frustration - performance
-    df[ORIGINAL_TARGET_COL] = (
+        raise ValueError(f"Required columns not found in data: {missing_cols}")
+
+    df[TLX_COL] = (
         df["temporal_demand"]
         + df["mental_demand"]
         + df["effort"]
         + df["frustration"]
         - df["performance"]
     )
-    
     return df
 
 
-def create_binary_target_per_participant(
+def _create_binary_target_for_one_outcome_per_participant(
     df: pd.DataFrame,
     outcome_col: str,
     group_col: str,
     lower_percentile: float,
     upper_percentile: float,
-    new_col: str = BINARY_TARGET_COL,
+    new_col: str,
 ) -> pd.DataFrame:
-    """
-    Create a binary target for each participant based on within-participant percentiles.
-
-    For each participant:
-      - Compute the lower and upper percentiles of the outcome variable (ignoring NaNs)
-      - Label samples with outcome <= lower_threshold as 0
-      - Label samples with outcome >= upper_threshold as 1
-      - Samples in between are set to NaN and will be dropped later
-    """
-    if not (0.0 < lower_percentile < upper_percentile < 1.0):
-        raise ValueError(
-            "lower_percentile and upper_percentile must satisfy 0 < lower < upper < 1, "
-            "e.g., 0.33 and 0.67 to keep bottom/top 33% and discard middle 33%."
-        )
-
     if outcome_col not in df.columns:
         raise ValueError(f"Outcome column '{outcome_col}' not found in data.")
     if group_col not in df.columns:
@@ -116,113 +99,63 @@ def create_binary_target_per_participant(
         lower_th = np.quantile(vals, lower_percentile)
         upper_th = np.quantile(vals, upper_percentile)
 
-        # Start with NaNs for all rows, then fill 0/1 for extremes
         new_vals = np.full(g.shape[0], np.nan)
         new_vals[g[outcome_col] <= lower_th] = 0
         new_vals[g[outcome_col] >= upper_th] = 1
-
         g[new_col] = new_vals
         return g
 
-    # Use group_keys=False so that the original index/columns are preserved;
-    # include_groups is not available in older pandas versions.
-    df_bin = df_bin.groupby(group_col, group_keys=False).apply(_per_group)
-    return df_bin
+    return df_bin.groupby(group_col, group_keys=False).apply(_per_group)
 
 
-def prepare_subset_with_target(
+def create_alertness_binary_target_per_participant(
     df: pd.DataFrame,
-    feature_cols: List[str],
-    target_col: str,
     group_col: str,
-) -> Tuple[pd.DataFrame, pd.Series, pd.Series]:
-    cols = list(dict.fromkeys(feature_cols + [target_col, group_col]))
-    subset = df[cols].copy()
-    subset = subset.dropna(subset=[target_col, group_col])
-    # Reset index so that subsequent use of iloc with group indices is safe
-    subset = subset.reset_index(drop=True)
-    X = subset[feature_cols]
-    y = subset[target_col]
-    groups = subset[group_col]
-    return X, y, groups
-
-
-def build_gb_pipeline(
-    numeric_features: List[str],
-    categorical_features: List[str],
-) -> Pipeline:
+    lower_percentile: float,
+    upper_percentile: float,
+    new_col: str = BINARY_TARGET_COL,
+) -> pd.DataFrame:
     """
-    Build a preprocessing + GradientBoostingClassifier pipeline.
+    Create alertness_binary from participant-specific tlx/sleepiness binaries.
+
+    Per participant:
+      - Build tlx_binary and sleepiness_binary with the same lower/upper percentiles.
+      - alertness_binary = 1 only when both tlx_binary==1 and sleepiness_binary==1.
+      - alertness_binary = 0 when both tlx_binary==0 and sleepiness_binary==0.
+      - all other combinations remain NaN and are dropped later.
     """
-    numeric_transformer = Pipeline(
-        steps=[
-            ("imputer", SimpleImputer(strategy="median")),
-        ]
+    if not (0.0 < lower_percentile < upper_percentile < 1.0):
+        raise ValueError(
+            "lower_percentile and upper_percentile must satisfy 0 < lower < upper < 1."
+        )
+    df_tlx = _create_binary_target_for_one_outcome_per_participant(
+        df=df,
+        outcome_col=TLX_COL,
+        group_col=group_col,
+        lower_percentile=lower_percentile,
+        upper_percentile=upper_percentile,
+        new_col=TLX_BINARY_COL,
+    )
+    df_both = _create_binary_target_for_one_outcome_per_participant(
+        df=df_tlx,
+        outcome_col=SLEEPINESS_COL,
+        group_col=group_col,
+        lower_percentile=lower_percentile,
+        upper_percentile=upper_percentile,
+        new_col=SLEEPINESS_BINARY_COL,
     )
 
-    categorical_transformer = Pipeline(
-        steps=[
-            ("imputer", SimpleImputer(strategy="most_frequent")),
-            ("onehot", OneHotEncoder(handle_unknown="ignore")),
-        ]
-    )
+    tlx_bin = df_both[TLX_BINARY_COL]
+    sleep_bin = df_both[SLEEPINESS_BINARY_COL]
 
-    preprocessor = ColumnTransformer(
-        transformers=[
-            ("num", numeric_transformer, numeric_features),
-            ("cat", categorical_transformer, categorical_features),
-        ]
-    )
+    is_alert = (tlx_bin == 1) & (sleep_bin == 1)
+    is_not_alert = (tlx_bin == 0) & (sleep_bin == 0)
 
-    model = GradientBoostingClassifier(
-        random_state=RANDOM_STATE,
-        max_depth=3,
-        n_estimators=300,
-        learning_rate=0.03,
-        subsample=0.8,
-        min_samples_leaf=10,
-    )
-
-    clf = Pipeline(
-        steps=[
-            ("preprocess", preprocessor),
-            ("model", model),
-        ]
-    )
-    return clf
-
-
-def compute_confusion_and_scores(
-    y_true: np.ndarray,
-    y_pred: np.ndarray,
-) -> Tuple[int, int, int, int, float, float, float]:
-    """
-    Return TP, FP, FN, TN, precision, recall, f1 for binary labels {0,1}.
-    """
-    y_true = np.asarray(y_true).astype(int)
-    y_pred = np.asarray(y_pred).astype(int)
-
-    tp = int(np.sum((y_true == 1) & (y_pred == 1)))
-    fp = int(np.sum((y_true == 0) & (y_pred == 1)))
-    fn = int(np.sum((y_true == 1) & (y_pred == 0)))
-    tn = int(np.sum((y_true == 0) & (y_pred == 0)))
-
-    if tp + fp == 0:
-        precision = 0.0
-    else:
-        precision = float(precision_score(y_true, y_pred, zero_division=0))
-
-    if tp + fn == 0:
-        recall = 0.0
-    else:
-        recall = float(recall_score(y_true, y_pred, zero_division=0))
-
-    if (precision + recall) == 0.0:
-        f1 = 0.0
-    else:
-        f1 = float(f1_score(y_true, y_pred, zero_division=0))
-
-    return tp, fp, fn, tn, precision, recall, f1
+    out = np.full(df_both.shape[0], np.nan)
+    out[is_alert.to_numpy()] = 1
+    out[is_not_alert.to_numpy()] = 0
+    df_both[new_col] = out
+    return df_both
 
 
 def save_pr_curve(
@@ -263,6 +196,93 @@ def save_pr_curve(
     return pr_auc
 
 
+def prepare_subset_with_target(
+    df: pd.DataFrame,
+    feature_cols: List[str],
+    target_col: str,
+    group_col: str,
+) -> Tuple[pd.DataFrame, pd.Series, pd.Series]:
+    cols = list(dict.fromkeys(feature_cols + [target_col, group_col]))
+    subset = df[cols].copy()
+    subset = subset.dropna(subset=[target_col, group_col])
+    subset = subset.reset_index(drop=True)
+    X = subset[feature_cols]
+    y = subset[target_col]
+    groups = subset[group_col]
+    return X, y, groups
+
+
+def build_gb_pipeline(
+    numeric_features: List[str],
+    categorical_features: List[str],
+) -> Pipeline:
+    numeric_transformer = Pipeline(
+        steps=[
+            ("imputer", SimpleImputer(strategy="median")),
+        ]
+    )
+
+    categorical_transformer = Pipeline(
+        steps=[
+            ("imputer", SimpleImputer(strategy="most_frequent")),
+            ("onehot", OneHotEncoder(handle_unknown="ignore")),
+        ]
+    )
+
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ("num", numeric_transformer, numeric_features),
+            ("cat", categorical_transformer, categorical_features),
+        ]
+    )
+
+    model = GradientBoostingClassifier(
+        random_state=RANDOM_STATE,
+        max_depth=3,
+        n_estimators=300,
+        learning_rate=0.03,
+        subsample=0.8,
+        min_samples_leaf=10,
+    )
+
+    return Pipeline(
+        steps=[
+            ("preprocess", preprocessor),
+            ("model", model),
+        ]
+    )
+
+
+def compute_confusion_and_scores(
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+) -> Tuple[int, int, int, int, float, float, float]:
+    y_true = np.asarray(y_true).astype(int)
+    y_pred = np.asarray(y_pred).astype(int)
+
+    tp = int(np.sum((y_true == 1) & (y_pred == 1)))
+    fp = int(np.sum((y_true == 0) & (y_pred == 1)))
+    fn = int(np.sum((y_true == 1) & (y_pred == 0)))
+    tn = int(np.sum((y_true == 0) & (y_pred == 0)))
+
+    if tp + fp == 0:
+        precision = 0.0
+    else:
+        precision = float(precision_score(y_true, y_pred, zero_division=0))
+
+    if tp + fn == 0:
+        recall = 0.0
+    else:
+        recall = float(recall_score(y_true, y_pred, zero_division=0))
+
+    if (precision + recall) == 0.0:
+        f1 = 0.0
+    else:
+        f1 = float(f1_score(y_true, y_pred, zero_division=0))
+
+    return tp, fp, fn, tn, precision, recall, f1
+
+
 def within_participant_cv_binary_gb(
     df: pd.DataFrame,
     feature_cols: List[str],
@@ -278,7 +298,6 @@ def within_participant_cv_binary_gb(
     total_tp = total_fp = total_fn = total_tn = 0
     all_y_true: List[np.ndarray] = []
     all_y_score: List[np.ndarray] = []
-
     groups_dict = groups_all.groupby(groups_all).groups
 
     for _, idx in tqdm(
@@ -294,11 +313,7 @@ def within_participant_cv_binary_gb(
         if n_splits < 2:
             continue
 
-        cv = KFold(
-            n_splits=n_splits,
-            shuffle=True,
-            random_state=RANDOM_STATE,
-        )
+        cv = KFold(n_splits=n_splits, shuffle=True, random_state=RANDOM_STATE)
 
         X_p = X_all.iloc[idx]
         y_p = y_all.iloc[idx].to_numpy()
@@ -306,7 +321,6 @@ def within_participant_cv_binary_gb(
         for train_idx, test_idx in cv.split(X_p, y_p):
             y_train = y_p[train_idx]
             if len(np.unique(y_train)) < 2:
-                # Skip folds where only one class is present in training data
                 continue
 
             model = build_gb_pipeline(numeric_features, categorical_features)
@@ -358,7 +372,6 @@ def cross_participant_cv_binary_gb(
     categorical_features = [c for c in feature_cols if c not in numeric_features]
 
     logo = LeaveOneGroupOut()
-
     total_tp = total_fp = total_fn = total_tn = 0
     all_y_true: List[np.ndarray] = []
     all_y_score: List[np.ndarray] = []
@@ -372,7 +385,6 @@ def cross_participant_cv_binary_gb(
     for train_idx, test_idx in logo.split(X, y, groups):
         y_train = y.iloc[train_idx].to_numpy()
         if len(np.unique(y_train)) < 2:
-            # Skip folds where only one class is present in training data
             progress.update(1)
             continue
 
@@ -392,7 +404,6 @@ def cross_participant_cv_binary_gb(
         total_tn += tn
         all_y_true.append(np.asarray(y_test).astype(int))
         all_y_score.append(np.asarray(y_score).astype(float))
-
         progress.update(1)
 
     progress.close()
@@ -423,29 +434,20 @@ def run_binary_gb_experiments(
     lower_percentile: float = 1.0 / 3.0,
     upper_percentile: float = 2.0 / 3.0,
 ) -> None:
-    """
-    Run binary classification experiments for all feature groups using Gradient Boosting
-    and the given lower/upper percentiles.
-
-    Example: lower=1/3, upper=2/3 → keep bottom/top 33% of samples per participant
-    (low vs high TLX) and discard the middle 33%.
-    """
     df = load_data(DATA_PATH)
     print(f"Loaded data from '{DATA_PATH}' with shape {df.shape}")
     print(
-        f"Calculated '{ORIGINAL_TARGET_COL}' from temporal_demand + mental_demand + "
-        f"effort + frustration - performance"
+        f"Creating binary target '{BINARY_TARGET_COL}' from participant-specific "
+        f"'{TLX_COL}' and '{SLEEPINESS_COL}' using lower/upper percentiles = "
+        f"{lower_percentile:.2f}/{upper_percentile:.2f}."
     )
     print(
-        f"Creating binary target '{BINARY_TARGET_COL}' from '{ORIGINAL_TARGET_COL}' "
-        f"using within-participant lower/upper percentiles = "
-        f"{lower_percentile:.2f}/{upper_percentile:.2f} "
-        f"(keeping extremes, discarding middle)."
+        f"Definition: {BINARY_TARGET_COL}=1 only when {TLX_BINARY_COL}=1 and "
+        f"{SLEEPINESS_BINARY_COL}=1; {BINARY_TARGET_COL}=0 when both are 0."
     )
 
-    df_bin = create_binary_target_per_participant(
-        df,
-        outcome_col=ORIGINAL_TARGET_COL,
+    df_bin = create_alertness_binary_target_per_participant(
+        df=df,
         group_col=GROUP_COL,
         lower_percentile=lower_percentile,
         upper_percentile=upper_percentile,
@@ -535,8 +537,8 @@ def run_binary_gb_experiments(
 
 
 def main() -> None:
-    # Default to keeping bottom/top 33% and discarding middle 33% per participant.
-    run_binary_gb_experiments(lower_percentile=1.0 / 3.0, upper_percentile=2.0 / 3.0)
+    # Keep near-median split (roughly <=50th as 0 and >=50th as 1) per participant.
+    run_binary_gb_experiments(lower_percentile=0.49, upper_percentile=0.51)
 
 
 if __name__ == "__main__":

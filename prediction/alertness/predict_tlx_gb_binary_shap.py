@@ -25,7 +25,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
 from tqdm.auto import tqdm
 
-from prediction.alertness.predict_sleepiness_forest import (
+from prediction.alertness.shared_config import (
     DATA_PATH,
     FEATURE_GROUPS,
     GROUP_COL,
@@ -326,6 +326,30 @@ def compute_shap_importance(
     return mean_abs_shap, feature_names
 
 
+def _map_shap_feature_to_base_feature(
+    shap_feature_name: str,
+    numeric_features: List[str],
+    categorical_features: List[str],
+) -> str:
+    """
+    Map a post-preprocessing feature name back to its original input feature.
+
+    - Numeric features stay unchanged.
+    - One-hot encoded categorical features are expected to be "{col}_{category}",
+      so we map them back to "{col}" by prefix matching on known categorical columns.
+    """
+    if shap_feature_name in numeric_features:
+        return shap_feature_name
+
+    for cat_feat in categorical_features:
+        prefix = f"{cat_feat}_"
+        if shap_feature_name.startswith(prefix) or shap_feature_name == cat_feat:
+            return cat_feat
+
+    # Fallback: unknown naming format; keep as-is
+    return shap_feature_name
+
+
 def analyze_feature_importance_shap(
     lower_percentile: float = 1.0 / 3.0,
     upper_percentile: float = 2.0 / 3.0,
@@ -441,6 +465,53 @@ def analyze_feature_importance_shap(
     output_path = BASE_DIR / "processed_data" / "tlx_gb_binary_shap_importance.csv"
     importance_df.to_csv(output_path, index=False)
     print(f"\nFull results saved to: {output_path}")
+
+    # Summarize contribution by FEATURE_GROUP (atomic groups; exclude combined/overall)
+    atomic_group_names = [
+        g
+        for g in FEATURE_GROUPS.keys()
+        if g not in {"mouse_keyboard_traits_sleep_engagement", "all_features"}
+    ]
+
+    base_feature_to_group: Dict[str, str] = {}
+    for g in atomic_group_names:
+        for f in FEATURE_GROUPS.get(g, []):
+            # Prefer first assignment if ever duplicated
+            base_feature_to_group.setdefault(f, g)
+
+    importance_df = importance_df.copy()
+    importance_df["base_feature"] = importance_df["feature"].apply(
+        lambda s: _map_shap_feature_to_base_feature(s, numeric_features, categorical_features)
+    )
+    importance_df["feature_group"] = importance_df["base_feature"].map(base_feature_to_group).fillna(
+        "unknown"
+    )
+
+    group_contrib_df = (
+        importance_df.groupby("feature_group", as_index=False)
+        .agg(
+            n_encoded_features=("feature", "count"),
+            n_base_features=("base_feature", pd.Series.nunique),
+            sum_mean_abs_shap=("mean_abs_shap", "sum"),
+            mean_mean_abs_shap=("mean_abs_shap", "mean"),
+        )
+        .sort_values("sum_mean_abs_shap", ascending=False)
+        .reset_index(drop=True)
+    )
+    total_shap = float(group_contrib_df["sum_mean_abs_shap"].sum())
+    group_contrib_df["share_of_total"] = (
+        group_contrib_df["sum_mean_abs_shap"] / total_shap if total_shap > 0 else 0.0
+    )
+
+    group_output_path = BASE_DIR / "processed_data" / "tlx_gb_binary_shap_group_contribution.csv"
+    group_output_path.parent.mkdir(parents=True, exist_ok=True)
+    group_contrib_df.to_csv(group_output_path, index=False)
+
+    print("\n" + "=" * 80)
+    print("FEATURE_GROUP Contribution Summary (by sum of mean_abs_shap)")
+    print("=" * 80)
+    print(group_contrib_df.to_string(index=False))
+    print(f"\nGroup contribution results saved to: {group_output_path}")
     
     return importance_df
 

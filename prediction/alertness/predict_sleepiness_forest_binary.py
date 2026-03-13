@@ -20,13 +20,13 @@ from sklearn.metrics import precision_score, recall_score, f1_score
 from sklearn.model_selection import KFold, LeaveOneGroupOut
 from tqdm.auto import tqdm
 
-from prediction.alertness.predict_sleepiness_forest import (
+from prediction.alertness.shared_config import (
     DATA_PATH,
     FEATURE_GROUPS,
     GROUP_COL,
     RANDOM_STATE,
-    build_pipeline,
 )
+from prediction.alertness.predict_sleepiness_forest import build_pipeline
 
 
 BASE_DIR = Path(__file__).resolve().parent

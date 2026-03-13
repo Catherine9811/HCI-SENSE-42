@@ -11,18 +11,19 @@ uses GradientBoostingClassifier instead of RandomForestClassifier.
 from pathlib import Path
 from typing import Dict, List, Tuple
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.impute import SimpleImputer
-from sklearn.metrics import precision_score, recall_score, f1_score
+from sklearn.metrics import auc, f1_score, precision_recall_curve, precision_score, recall_score
 from sklearn.model_selection import KFold, LeaveOneGroupOut
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
 from tqdm.auto import tqdm
 
-from prediction.alertness.predict_sleepiness_forest import (
+from prediction.alertness.shared_config import (
     DATA_PATH,
     FEATURE_GROUPS,
     GROUP_COL,
@@ -33,6 +34,8 @@ BASE_DIR = Path(__file__).resolve().parent
 
 ORIGINAL_TARGET_COL = "sleepiness"
 BINARY_TARGET_COL = "sleepiness_binary"
+PR_CURVE_WITHIN_PATH = BASE_DIR / "processed_data" / "sleepiness_gb_binary_pr_curve_within.png"
+PR_CURVE_CROSS_PATH = BASE_DIR / "processed_data" / "sleepiness_gb_binary_pr_curve_cross.png"
 
 
 def load_data(path: Path) -> pd.DataFrame:
@@ -142,6 +145,11 @@ def build_gb_pipeline(
 
     model = GradientBoostingClassifier(
         random_state=RANDOM_STATE,
+        max_depth=3,
+        n_estimators=300,
+        learning_rate=0.03,
+        subsample=0.8,
+        min_samples_leaf=10,
     )
 
     clf = Pipeline(
@@ -186,19 +194,59 @@ def compute_confusion_and_scores(
     return tp, fp, fn, tn, precision, recall, f1
 
 
+def save_pr_curve(
+    y_true: np.ndarray,
+    y_score: np.ndarray,
+    title: str,
+    output_path: Path,
+) -> float:
+    if y_true.size == 0 or y_score.size == 0:
+        return float("nan")
+
+    precision, recall, _ = precision_recall_curve(y_true, y_score)
+    pr_auc = float(auc(recall, precision))
+    baseline_precision = float(np.mean(y_true))
+
+    fig, ax = plt.subplots(figsize=(6.4, 5.0), constrained_layout=True)
+    ax.plot(recall, precision, color="#1f77b4", linewidth=2.0, label=f"PR-AUC = {pr_auc:.3f}")
+    ax.hlines(
+        y=baseline_precision,
+        xmin=0.0,
+        xmax=1.0,
+        colors="#d62728",
+        linestyles="--",
+        linewidth=1.8,
+        label=f"No-skill baseline = {baseline_precision:.3f}",
+    )
+    ax.set_xlabel("Recall")
+    ax.set_ylabel("Precision")
+    ax.set_xlim(0.0, 1.0)
+    ax.set_ylim(0.0, 1.02)
+    ax.set_title(title)
+    ax.grid(True, linestyle="--", linewidth=0.6, alpha=0.35)
+    ax.legend(frameon=False, loc="lower left")
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_path, dpi=300, bbox_inches="tight")
+    plt.close(fig)
+    return pr_auc
+
+
 def within_participant_cv_binary_gb(
     df: pd.DataFrame,
     feature_cols: List[str],
     target_col: str,
     group_col: str,
     n_splits_default: int = 5,
-) -> Dict[str, float]:
+) -> Tuple[Dict[str, float], np.ndarray, np.ndarray]:
     X_all, y_all, groups_all = prepare_subset_with_target(df, feature_cols, target_col, group_col)
 
     numeric_features = [c for c in feature_cols if pd.api.types.is_numeric_dtype(X_all[c])]
     categorical_features = [c for c in feature_cols if c not in numeric_features]
 
     total_tp = total_fp = total_fn = total_tn = 0
+    all_y_true: List[np.ndarray] = []
+    all_y_score: List[np.ndarray] = []
 
     groups_dict = groups_all.groupby(groups_all).groups
 
@@ -235,22 +283,25 @@ def within_participant_cv_binary_gb(
             y_test = y_p[test_idx]
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
+            y_score = model.predict_proba(X_test)[:, 1]
 
             tp, fp, fn, tn, _, _, _ = compute_confusion_and_scores(y_test, y_pred)
             total_tp += tp
             total_fp += fp
             total_fn += fn
             total_tn += tn
+            all_y_true.append(np.asarray(y_test).astype(int))
+            all_y_score.append(np.asarray(y_score).astype(float))
 
     total = total_tp + total_fp + total_fn + total_tn
     if total == 0:
-        return {}
+        return {}, np.array([], dtype=int), np.array([], dtype=float)
 
     precision = total_tp / (total_tp + total_fp) if (total_tp + total_fp) > 0 else 0.0
     recall = total_tp / (total_tp + total_fn) if (total_tp + total_fn) > 0 else 0.0
     f1 = 0.0 if (precision + recall) == 0.0 else 2 * precision * recall / (precision + recall)
 
-    return {
+    metrics = {
         "TP": float(total_tp),
         "FP": float(total_fp),
         "FN": float(total_fn),
@@ -259,6 +310,9 @@ def within_participant_cv_binary_gb(
         "recall": float(recall),
         "f1": float(f1),
     }
+    y_true_all = np.concatenate(all_y_true) if all_y_true else np.array([], dtype=int)
+    y_score_all = np.concatenate(all_y_score) if all_y_score else np.array([], dtype=float)
+    return metrics, y_true_all, y_score_all
 
 
 def cross_participant_cv_binary_gb(
@@ -266,7 +320,7 @@ def cross_participant_cv_binary_gb(
     feature_cols: List[str],
     target_col: str,
     group_col: str,
-) -> Dict[str, float]:
+) -> Tuple[Dict[str, float], np.ndarray, np.ndarray]:
     X, y, groups = prepare_subset_with_target(df, feature_cols, target_col, group_col)
 
     numeric_features = [c for c in feature_cols if pd.api.types.is_numeric_dtype(X[c])]
@@ -275,6 +329,8 @@ def cross_participant_cv_binary_gb(
     logo = LeaveOneGroupOut()
 
     total_tp = total_fp = total_fn = total_tn = 0
+    all_y_true: List[np.ndarray] = []
+    all_y_score: List[np.ndarray] = []
 
     progress = tqdm(
         total=groups.nunique(),
@@ -296,12 +352,15 @@ def cross_participant_cv_binary_gb(
 
         model.fit(X_train, y_train)
         y_pred = model.predict(X_test)
+        y_score = model.predict_proba(X_test)[:, 1]
 
         tp, fp, fn, tn, _, _, _ = compute_confusion_and_scores(y_test, y_pred)
         total_tp += tp
         total_fp += fp
         total_fn += fn
         total_tn += tn
+        all_y_true.append(np.asarray(y_test).astype(int))
+        all_y_score.append(np.asarray(y_score).astype(float))
 
         progress.update(1)
 
@@ -309,13 +368,13 @@ def cross_participant_cv_binary_gb(
 
     total = total_tp + total_fp + total_fn + total_tn
     if total == 0:
-        return {}
+        return {}, np.array([], dtype=int), np.array([], dtype=float)
 
     precision = total_tp / (total_tp + total_fp) if (total_tp + total_fp) > 0 else 0.0
     recall = total_tp / (total_tp + total_fn) if (total_tp + total_fn) > 0 else 0.0
     f1 = 0.0 if (precision + recall) == 0.0 else 2 * precision * recall / (precision + recall)
 
-    return {
+    metrics = {
         "TP": float(total_tp),
         "FP": float(total_fp),
         "FN": float(total_fn),
@@ -324,6 +383,9 @@ def cross_participant_cv_binary_gb(
         "recall": float(recall),
         "f1": float(f1),
     }
+    y_true_all = np.concatenate(all_y_true) if all_y_true else np.array([], dtype=int)
+    y_score_all = np.concatenate(all_y_score) if all_y_score else np.array([], dtype=float)
+    return metrics, y_true_all, y_score_all
 
 
 def run_binary_gb_experiments(
@@ -377,13 +439,13 @@ def run_binary_gb_experiments(
             print("  No existing features for this group, skipping.")
             continue
 
-        wp_results = within_participant_cv_binary_gb(
+        wp_results, wp_y_true, wp_y_score = within_participant_cv_binary_gb(
             df_bin,
             existing_features,
             target_col=BINARY_TARGET_COL,
             group_col=GROUP_COL,
         )
-        cp_results = cross_participant_cv_binary_gb(
+        cp_results, cp_y_true, cp_y_score = cross_participant_cv_binary_gb(
             df_bin,
             existing_features,
             target_col=BINARY_TARGET_COL,
@@ -412,10 +474,34 @@ def run_binary_gb_experiments(
         print_results("Within-participant CV (GB, binary)", wp_results)
         print_results("Cross-participant CV (Leave-One-Participant-Out, GB, binary)", cp_results)
 
+        if wp_y_true.size > 0 and wp_y_score.size > 0:
+            wp_pr_auc = save_pr_curve(
+                wp_y_true,
+                wp_y_score,
+                "Within-participant PR Curve (GB, binary)",
+                PR_CURVE_WITHIN_PATH,
+            )
+            print(f"  Within-participant PR-AUC={wp_pr_auc:.3f}")
+            print(f"  Saved PR curve: {PR_CURVE_WITHIN_PATH}")
+        else:
+            print("  Within-participant PR curve not saved (no valid probability outputs).")
+
+        if cp_y_true.size > 0 and cp_y_score.size > 0:
+            cp_pr_auc = save_pr_curve(
+                cp_y_true,
+                cp_y_score,
+                "Cross-participant PR Curve (GB, binary)",
+                PR_CURVE_CROSS_PATH,
+            )
+            print(f"  Cross-participant PR-AUC={cp_pr_auc:.3f}")
+            print(f"  Saved PR curve: {PR_CURVE_CROSS_PATH}")
+        else:
+            print("  Cross-participant PR curve not saved (no valid probability outputs).")
+
 
 def main() -> None:
     # Default to keeping bottom/top 33% and discarding middle 33% per participant.
-    run_binary_gb_experiments(lower_percentile=1.49 / 3.0, upper_percentile=1.51 / 3.0)
+    run_binary_gb_experiments(lower_percentile=0.94, upper_percentile=0.95)
 
 
 if __name__ == "__main__":
