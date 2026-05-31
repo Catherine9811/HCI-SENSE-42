@@ -87,6 +87,7 @@ pip install -r requirements.txt
 ```bash
 python3 main.py
 ```
+> 💡 For parsing and checking data for each modality, refer to scripts located in `analyze_*/check_*.py` to get started
 
 ### Accessing the Dataset
 
@@ -118,12 +119,19 @@ It is recommended by BioSemi to apply `average` on all the electrodes before oth
 ## Citation
 If you find our work useful, please cite:
 ```bibtex
-@misc{
-  HCI-SENSE-42,
-  title={SENSE-42 A multimodal dataset from a Simulated Environment for Neurocognitive State Evaluation during Human-Computer Interaction},
-  url={https://repo-prod.prod.sagebase.org/repo/v1/doi/locate?portalId=1&id=syn68713182&type=ENTITY},
-  DOI={10.7303/SYN68713182},
-  publisher={Synapse},
-  author={Zhang, Sai and Bai, Xinyu and Noreika, Valdas}, year={2025}
+@dataset{HCI-SENSE-42,
+  author       = {Zhang, Sai and
+                  Bai, Xinyu and
+                  Beyer, Frederike and
+                  Noreika, Valdas},
+  title        = {{SENSE-42}: A multimodal human-computer interaction
+                   dataset for neurocognitive user state evaluation
+                  },
+  year         = 2025,
+  publisher    = {Zenodo},
+  version      = {1.0.0},
+  doi          = {10.5281/zenodo.20328099},
+  url          = {https://doi.org/10.5281/zenodo.20328099},
+  howpublished = {\url{https://doi.org/10.5281/zenodo.20328099}},
 }
 ```
