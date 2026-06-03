@@ -4,7 +4,7 @@ SENSE-42 is a publicly available, multimodal dataset designed to support the stu
 
 This repository contains the [source code of the experiment](https://github.com/Catherine9811/HCI-SENSE-42/tree/experiment) implemented by [PsychoPy v2024.2.3](https://www.psychopy.org/), as well as the [Python and R scripts](https://github.com/Catherine9811/HCI-SENSE-42/tree/master) to parse and analyze the HCI-SENSE-42 dataset.
 
-The project includes both the raw dataset (available via [Synapse](https://www.synapse.org/Synapse:syn68713182/)) and the analysis codebase (available on [GitHub](https://github.com/Catherine9811/HCI-SENSE-42/), WIP) for replicability and reuse.
+The project includes both the raw dataset (available via [Zenodo](https://doi.org/10.5281/zenodo.20328098)) and the analysis codebase (available on [GitHub](https://github.com/Catherine9811/HCI-SENSE-42/), WIP) for replicability and reuse.
 
 ![Experiment Information](https://github.com/Catherine9811/HCI-SENSE-42/blob/master/assets/experiment_flow_new.jpg)
 
@@ -62,7 +62,7 @@ The dataset includes multimodal data, including
     └── check_text_materials.py  # Parsing and visualization of the word distributions
 ```
 
-> 💡 After downloaded the [HCI-SENSE-42 Dataset](https://www.synapse.org/Synapse:syn68714673), we expect them to be organized in the format listed above.
+> 💡 After downloaded the [HCI-SENSE-42 Dataset](https://doi.org/10.5281/zenodo.20328098), we expect them to be organized in the format listed above.
 
 ## Getting Started
 
@@ -87,10 +87,11 @@ pip install -r requirements.txt
 ```bash
 python3 main.py
 ```
+> 💡 For parsing and checking data for each modality, refer to scripts located in `analyze_*/check_*.py` to get started
 
 ### Accessing the Dataset
 
-The dataset is hosted on [Synapse](https://www.synapse.org/HCI_SENSE_42): https://www.synapse.org/HCI_SENSE_42
+The dataset is hosted on [Zenodo](https://doi.org/10.5281/zenodo.20328098): https://doi.org/10.5281/zenodo.20328098 and partially hosted on [Synapse](https://www.synapse.org/HCI_SENSE_42).
 
 Data from sensors with different modalities are flattened to allow for separete downloads if not all of them are required in the analysis.
 
@@ -118,12 +119,19 @@ It is recommended by BioSemi to apply `average` on all the electrodes before oth
 ## Citation
 If you find our work useful, please cite:
 ```bibtex
-@misc{
-  HCI-SENSE-42,
-  title={SENSE-42 A multimodal dataset from a Simulated Environment for Neurocognitive State Evaluation during Human-Computer Interaction},
-  url={https://repo-prod.prod.sagebase.org/repo/v1/doi/locate?portalId=1&id=syn68713182&type=ENTITY},
-  DOI={10.7303/SYN68713182},
-  publisher={Synapse},
-  author={Zhang, Sai and Bai, Xinyu and Noreika, Valdas}, year={2025}
+@dataset{HCI-SENSE-42,
+  author       = {Zhang, Sai and
+                  Bai, Xinyu and
+                  Beyer, Frederike and
+                  Noreika, Valdas},
+  title        = {{SENSE-42}: A multimodal human-computer interaction
+                   dataset for neurocognitive user state evaluation
+                  },
+  year         = 2025,
+  publisher    = {Zenodo},
+  version      = {1.0.0},
+  doi          = {10.5281/zenodo.20328099},
+  url          = {https://doi.org/10.5281/zenodo.20328099},
+  howpublished = {\url{https://doi.org/10.5281/zenodo.20328099}},
 }
 ```
