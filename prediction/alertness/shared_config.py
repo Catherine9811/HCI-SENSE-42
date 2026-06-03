@@ -197,6 +197,50 @@ combined_features = sorted(
 )
 FEATURE_GROUPS["mouse_keyboard_traits_sleep_engagement"] = combined_features
 
+# Extended combined group: adds webcam behavioural features (head pose, blink, look_down)
+FEATURE_GROUPS["mouse_keyboard_traits_sleep_engagement_behavioural"] = sorted(
+    {
+        f
+        for k in COMBINED_KEYS + ["behavioural"]
+        for f in FEATURE_GROUPS.get(k, [])
+    }
+)
+
+# Proxy error columns: keyboard typing errors + mouse unintended clicks (_mean only, not _var)
+PROXY_ERROR_COLS: List[str] = [
+    "mouse_drag_distance_mean",
+    "mouse_drag_distance_var",
+    "mouse_drop_distance_mean",
+    "mouse_drop_distance_var",
+]
+
+# Non-HCI feature sets for proxy modeling (interaction_hci excluded to avoid leakage)
+PROXY_FEATURE_SET_A: List[str] = sorted(
+    {
+        f
+        for k in ["physiological_eeg", "physiological_ecg", "physiological_resp", "behavioural"]
+        for f in FEATURE_GROUPS.get(k, [])
+    }
+)
+PROXY_FEATURE_SET_B: List[str] = sorted(
+    {
+        f
+        for k in ["participant_traits", "computer_use", "sleep_quality", "engagement"]
+        for f in FEATURE_GROUPS.get(k, [])
+    }
+)
+PROXY_FEATURE_SET_C: List[str] = sorted(set(PROXY_FEATURE_SET_A) | set(PROXY_FEATURE_SET_B))
+
+# HCI features with proxy error columns removed to prevent leakage
+_PROXY_ERROR_SET: set = set(PROXY_ERROR_COLS)
+PROXY_FEATURE_SET_D: List[str] = sorted(
+    {f for f in FEATURE_GROUPS.get("interaction_hci", [])} - _PROXY_ERROR_SET
+)
+# All safe features: A ∪ B ∪ D
+PROXY_FEATURE_SET_E: List[str] = sorted(
+    set(PROXY_FEATURE_SET_C) | set(PROXY_FEATURE_SET_D)
+)
+
 # Add a combined "all_features" group for overall performance
 all_feature_names = sorted({f for group in FEATURE_GROUPS.values() for f in group})
 FEATURE_GROUPS["all_features"] = all_feature_names

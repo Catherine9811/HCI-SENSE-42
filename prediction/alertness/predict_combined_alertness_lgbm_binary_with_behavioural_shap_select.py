@@ -28,12 +28,12 @@ from prediction.alertness.shared_config import DATA_PATH, FEATURE_GROUPS
 
 
 BASE_DIR = Path(__file__).resolve().parent
-TARGET_GROUP = "mouse_keyboard_traits_sleep_engagement"
+TARGET_GROUP = "mouse_keyboard_traits_sleep_engagement_behavioural"
 SHAP_IMPORTANCE_PATH = (
-    BASE_DIR / "processed_data" / "combined_alertness_lgbm_participant_iqr_scaled_shap_importance.csv"
+    BASE_DIR / "processed_data" / "combined_alertness_lgbm_with_behavioural_shap_importance.csv"
 )
 SELECTED_FEATURES_PATH = (
-    BASE_DIR / "processed_data" / "combined_alertness_lgbm_participant_iqr_scaled_selected_features.csv"
+    BASE_DIR / "processed_data" / "combined_alertness_lgbm_with_behavioural_selected_features.csv"
 )
 LGBM_FIXED_PARAMS = {
     "n_estimators": 300,
@@ -493,7 +493,6 @@ def run_shap_feature_selection_experiment(
     for i, feature_name in enumerate(selected_features, start=1):
         print(f"    {i:2d}. {feature_name}")
 
-    # Refit/evaluate after feature removal using the reduced feature set.
     reduced_wp, reduced_wp_y_true, reduced_wp_y_score = within_participant_cv_binary_lgbm_with_params(
         df_bin,
         selected_features,
@@ -539,6 +538,17 @@ def run_shap_feature_selection_experiment(
             print(f"    - {name}")
         if len(removed_features) > 20:
             print(f"    ... and {len(removed_features) - 20} more")
+
+    behavioural_in_selected = [
+        f for f in selected_features if f in FEATURE_GROUPS.get("behavioural", [])
+    ]
+    print(f"  Behavioural features retained after SHAP: {len(behavioural_in_selected)}")
+    if behavioural_in_selected:
+        for f in behavioural_in_selected:
+            row = shap_importance[shap_importance["raw_feature"] == f]
+            imp = row["mean_abs_shap"].values[0] if not row.empty else float("nan")
+            rank = int(shap_importance[shap_importance["raw_feature"] == f].index[0]) + 1 if not row.empty else "?"
+            print(f"    - {f}  (rank {rank}, SHAP={imp:.4f})")
 
     print("\nResults BEFORE feature removal:")
     _print_result_block("Within-participant CV", baseline_wp)
